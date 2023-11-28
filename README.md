@@ -59,11 +59,11 @@ Download the pretrained weights
 wget http://pjreddie.com/media/files/yolo-voc.weights
 ```
 
-You can run the demo with `cpu` mode
+You can run the demo with `cpu` mode for YOLO v2
 
     python demo.py
 
-Or with `gpu` mode
+Or with `gpu` mode for YOLO v2
 
     python demo.py --cuda true
 
@@ -128,7 +128,11 @@ the data root path
     
 
 
-### Train the model
+### Train the model - YOLOv2 - Tiny 
+
+    python train_yolov2_tiny.py
+
+### Train the model - YOLOv2
 
     python train.py --cuda true
      
