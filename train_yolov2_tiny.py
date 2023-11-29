@@ -86,6 +86,7 @@ def train():
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
     args.batch_size = args.batch_size
+    # args.data_limit = 80
     # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
     args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth')
 
@@ -189,6 +190,7 @@ def train():
             loss.backward(retain_graph=True)
 
             optimizer.step()
+            loss_temp += loss.item()
 
         # Show loss after epoch
         toc = time.time()
