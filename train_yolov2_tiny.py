@@ -199,7 +199,7 @@ def train():
         class_loss_v = class_loss.mean().item()
 
         print(f"[epoch %2d][step %4d/%4d] loss: %.4f, lr: %.2e, time cost %.1fs, tiou_loss: %.4f, box_loss: %.4f, class_loss: %.4f" \
-                % (epoch, step+1, iters_per_epoch, loss_temp, custom_optimizer.param_groups[0]['lr'], toc - tic, iou_loss_v, box_loss_v, class_loss_v), end =' ')
+                % (epoch, step+1, iters_per_epoch, loss_temp, optimizer.param_groups[0]['lr'], toc - tic, iou_loss_v, box_loss_v, class_loss_v), end =' ')
 
         loss_temp = 0
         tic = time.time()
@@ -209,7 +209,7 @@ def train():
             torch.save({
                 'model': model.module.state_dict() if args.mGPUs else model.state_dict(),
                 'epoch': epoch,
-                'lr': custom_optimizer.param_groups[0]['lr'],
+                'lr': optimizer.param_groups[0]['lr'],
                 'loss': loss.item()
                 }, save_name)
             
@@ -221,7 +221,7 @@ def train():
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
-                'lr': custom_optimizer.param_groups[0]['lr'],
+                'lr': optimizer.param_groups[0]['lr'],
                 'loss': loss.item()
                 }, save_name)
         
@@ -238,7 +238,7 @@ def train():
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
-                'lr': custom_optimizer.param_groups[0]['lr'],
+                'lr': optimizer.param_groups[0]['lr'],
                 'loss': loss.item(),
                 'map': map
                 }, save_name)
