@@ -168,7 +168,7 @@ def test_for_train(temp_path, model, args):
     args.dataset = "voc07test"
     args.conf_thresh = 0.001
     args.nms_thresh = 0.45
-    args.data_limit = 100
+    # args.data_limit = 100
     # print(args)
     
     args.output_dir = temp_path
