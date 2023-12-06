@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import os
 import argparse
 import time
@@ -16,7 +17,8 @@ import matplotlib.pyplot as plt
 from util.network import WeightLoader
 from torch.utils.data import DataLoader
 from config import config as cfg
-
+import warnings
+warnings.filterwarnings('ignore')
 
 def parse_args():
 
@@ -168,7 +170,7 @@ def test_for_train(temp_path, model, args):
     args.dataset = "voc07test"
     args.conf_thresh = 0.001
     args.nms_thresh = 0.45
-    # args.data_limit = 100
+    # args.data_limit = 16
     # print(args)
     
     args.output_dir = temp_path
@@ -225,8 +227,8 @@ def test_for_train(temp_path, model, args):
 
     img_id = -1
     with torch.no_grad():
-        # for batch, (im_data, im_infos) in tqdm(enumerate(val_dataloader), total=len(val_dataloader), desc="Performing validation."):
-        for batch, (im_data, im_infos) in enumerate(val_dataloader):
+        for batch, (im_data, im_infos) in tqdm(enumerate(val_dataloader), total=len(val_dataloader), desc="Performing validation.", ascii=' ~'):
+        # for batch, (im_data, im_infos) in enumerate(val_dataloader):
         # for batch, (im_data, im_infos) in enumerate(small_val_dataloader):
             if args.use_cuda:
                 im_data_variable = Variable(im_data).cuda()

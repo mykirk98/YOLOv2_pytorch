@@ -148,14 +148,14 @@ def train():
     # Check and save the best mAP
     save_name_temp = os.path.join(output_dir, 'temp')
     map = test_for_train(save_name_temp, model, args)
-    print(f'\t-->>Initial mAP={round((map*100),2)}')
+    print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
     
     # Start training
     for epoch in range(args.start_epoch, args.max_epochs+1):
         loss_temp = 0
         tic = time.time()
         train_data_iter = iter(train_dataloader)
-
+        print()
         for step in tqdm(range(iters_per_epoch), desc=f'Epoch {epoch}', total=iters_per_epoch):
 
             # Randomly select a scale from the specified range
@@ -218,7 +218,7 @@ def train():
         # Check minimum loss and save weights for minimum loss
         if loss.item() < min_loss:
             min_loss = loss.item()
-            print(f'\n\n\t-->>Saving lower loss weights at Epoch {epoch}, with loss={round(loss.item(),2)}')
+            print(f'\n\t-->>Saving lower loss weights at Epoch {epoch}, with loss={round(loss.item(),2)}')
             save_name = os.path.join(output_dir, 'yolov2_least_loss.pth')
             torch.save({
                 'model': model.state_dict(),
