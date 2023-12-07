@@ -51,21 +51,11 @@ Then create some folder
     mkdir output 
     mkdir data
 
-## Demo
-
 Download the pretrained weights
 
 ```
 wget http://pjreddie.com/media/files/yolo-voc.weights
 ```
-
-You can run the demo with `cpu` mode for YOLO v2
-
-    python demo.py
-
-Or with `gpu` mode for YOLO v2
-
-    python demo.py --cuda true
 
 ## Training on PASCAL VOC
 
