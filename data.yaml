@@ -1,0 +1,35 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# COCO 2017 dataset http://cocodataset.org by Microsoft
+# Example usage: python train.py --data coco.yaml
+# parent
+# ├── yolov5
+# └── datasets
+#     └── coco  ← downloads here
+
+path: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd
+
+train: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/train.txt
+val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val1k.txt
+test:   /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val.txt
+
+# Classes
+nc: 3  # number of classes
+# names: ["car","bus","truck","motorcycle","bicycle","trailer","train","rider","pedestrian","traffic light","traffic sign","other vehicle","other person"]  # class names
+names: ["Vehicle", "Rider", "Pedestrian"]
+
+# # Download script/URL (optional)
+# download: |
+#   from utils.general import download, Path
+
+#   # Download labels
+#   segments = False  # segment or box labels
+#   dir = Path(yaml['path'])  # dataset root dir
+#   url = 'https://github.com/ultralytics/yolov5/releases/download/v1.0/'
+#   urls = [url + ('coco2017labels-segments.zip' if segments else 'coco2017labels.zip')]  # labels
+#   download(urls, dir=dir.parent)
+
+#   # Download data
+#   urls = ['http://images.cocodataset.org/zips/train2017.zip',  # 19G, 118k images
+#           'http://images.cocodataset.org/zips/val2017.zip',  # 1G, 5k images
+#           'http://images.cocodataset.org/zips/test2017.zip']  # 7G, 41k images (optional)
+#   download(urls, dir=dir / 'images', threads=3)

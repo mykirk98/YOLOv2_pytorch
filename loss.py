@@ -119,7 +119,7 @@ def build_target(output, gt_data, H, W):
 
         # step 2: process box target and class target
         # calculate overlaps between anchors and gt boxes
-        overlaps = box_ious(all_anchors_xxyy, gt_boxes).view(-1, num_anchors, num_obj)
+        overlaps = box_ious(all_anchors_xxyy, gt_boxes).view(-1, num_anchors, num_obj)  # [169, 5, 1]
         gt_boxes_xywh = xxyy2xywh(gt_boxes)
 
         # iterate over all objects

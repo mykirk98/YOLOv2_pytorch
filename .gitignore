@@ -1,3 +1,8 @@
+.vscode/
+config/config.py
+Object_Detection_Metrics/
+results/
+val.py
 data/
 .idea/
 .DS_Store

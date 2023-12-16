@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from config import config as cfg
+import pdb
 
 
 def random_scale_translation(img, boxes, jitter=0.2):
@@ -187,12 +188,14 @@ def augment_img(img, boxes, gt_classes):
     au_boxes -- numpy array of shape (N, 4) N is number of boxes, (x1, y1, x2, y2)
     au_gt_classes -- numpy array of shape (N). ground truth class index 0 ~ (N-1)
     """
-
     # img = np.array(img).astype(np.float32)
     boxes = np.copy(boxes).astype(np.float32)
 
     for i in range(5):
         img_t, boxes_t = random_scale_translation(img.copy(), boxes.copy(), jitter=cfg.jitter)
+        # print('Trace here----//')
+        # print(boxes_t)
+        # pdb.set_trace()
         keep = (boxes_t[:, 0] != boxes_t[:, 2]) & (boxes_t[:, 1] != boxes_t[:, 3])
         boxes_t = boxes_t[keep, :]
         if boxes_t.shape[0] > 0:

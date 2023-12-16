@@ -10,19 +10,23 @@ import time
 import torch
 import torch.nn as nn
 
+from util.data_util import check_dataset
 from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from dataset.factory import get_imdb
-from dataset.roidb import RoiDataset, detection_collate
+from dataset.roidb import RoiDataset, detection_collate, Custom_yolo_dataset
 from yolov2_tiny_2 import Yolov2
 # from yolov2_tiny_LightNorm import Yolov2
 from torch import optim
+from torch.optim import lr_scheduler
 from util.network import adjust_learning_rate
 from tensorboardX import SummaryWriter
 from config import config as cfg
 from Test_with_train import test_for_train
 from weight_update import *
+import cv2
+from PIL import Image
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
@@ -42,6 +46,8 @@ def parse_args():
                         default=0, type=int)
     parser.add_argument('--dataset', dest='dataset',
                         default='voc0712trainval', type=str)
+    parser.add_argument('--data', type=str,
+                        default=None, help='Give the path of custom data yaml file' )
     parser.add_argument('--nw', dest='num_workers',
                         help='number of workers to load training data',
                         default=8, type=int)
@@ -77,47 +83,87 @@ def get_dataset(datasetnames):
         print('load and add dataset {}'.format(name))
     return dataset
 
+def drawBox(label:np.array, img:np.ndarray):
+    # for i in range(label.shape[0]):
+    h, w, _ = img.shape
+    box = [label[0], label[1], label[2], label[3]]
+    img = cv2.rectangle(img,(int(box[0]*w), int(box[1]*h)), (int(box[2]*w), int(box[3]*h)), (0,0,255), 1)
+    return img
+
+def showImg(img, labels, std=None, mean=None):
+    # Convert the tensor to a numpy array
+    _image = img
+    image_np = _image.numpy().transpose((1, 2, 0))
+    # image_np = std * image_np + mean
+    image_np = np.clip(image_np, 0, 1)*255
+    _img = Image.fromarray(image_np.astype('uint8'), 'RGB')
+    _img = np.array(_img)
+    _img = cv2.cvtColor(_img, cv2.COLOR_RGB2BGR)
+    for i in range(labels.shape[0]):
+        label = labels[i].numpy()
+        _img = drawBox(label, _img)
+    cv2.imshow('', _img)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
 def train():
     
     # define the hyper parameters first
     args = parse_args()
     args.lr = cfg.lr
-    args.decay_lrs = cfg.decay_lrs
+    # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
     args.batch_size = args.batch_size
     # args.data_limit = 80
     # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
-    args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth')
+    args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
 
     print('Called with args:')
     print(args)
-
-    args.imdb_name, args.imdbval_name = get_dataset_names(args.dataset)
+    
+    if args.dataset == 'custom':
+        data_dict = check_dataset(args.data)
+        train_path, val_path = data_dict['train'], data_dict['val']
+        nc = int(data_dict['nc'])  # number of classes
+        names = data_dict['names']  # class names
+        assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
+        train_dataset = Custom_yolo_dataset(train_path)
+    else:    
+        args.imdb_name, args.imdbval_name = get_dataset_names(args.dataset)
+        # load dataset
+        print('loading dataset....')
+        train_dataset = get_dataset(args.imdb_name)
     
     output_dir = args.output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # load dataset
-    print('loading dataset....')
-    train_dataset = get_dataset(args.imdb_name)
+    
     if not args.data_limit==0:
         train_dataset = torch.utils.data.Subset(train_dataset, range(0, args.data_limit))
     print('dataset loaded.')
 
     print('Training Dataset: {}'.format(len(train_dataset)))
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,
-                                  shuffle=True, num_workers=args.num_workers,
-                                  collate_fn=detection_collate, drop_last=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,    #args.batch_size
+                                  shuffle=True, num_workers=args.num_workers,      # args.num_workers
+                                  collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
     print('initialize the model')
     tic = time.time()
-    model = Yolov2()
+    try:
+        nc
+    except:
+        nc = None
+
+    if nc is not None:
+        model = Yolov2(classes=names)
+    else:
+        model = Yolov2()    
     
     if args.resume:
-        pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu')
+        pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         model.load_state_dict(pre_trained_checkpoint['model'])
     
     toc = time.time()
@@ -125,7 +171,7 @@ def train():
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[3,50,90,150,170], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -145,9 +191,12 @@ def train():
     best_map_epoch = -1     
     best_map_loss  = -1 
 
-    # Check and save the best mAP
+    # # Check and save the best mAP
     save_name_temp = os.path.join(output_dir, 'temp')
-    map = test_for_train(save_name_temp, model, args)
+    if args.dataset == 'custom':
+        map, _ = test_for_train(save_name_temp, model, args, val_data=val_path, _num_classes = nc, customData=True, withTrain=True)
+    else:
+        map, _ = test_for_train(save_name_temp, model, args)
     print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
     
     # Start training
@@ -156,6 +205,7 @@ def train():
         tic = time.time()
         train_data_iter = iter(train_dataloader)
         print()
+        # optimizer.zero_grad()
         for step in tqdm(range(iters_per_epoch), desc=f'Epoch {epoch}', total=iters_per_epoch):
 
             # Randomly select a scale from the specified range
@@ -164,7 +214,10 @@ def train():
                 cfg.input_size = cfg.input_sizes[scale_index]
 
             # Get the next batch of training data
+            # print('Loading first batch of images')
             im_data, boxes, gt_classes, num_obj = next(train_data_iter)
+
+            # showImg(im_data[0], boxes[0])
 
             # Move the data tensors to the GPU
             if args.use_cuda:
@@ -184,17 +237,18 @@ def train():
 
             # Clear gradients
             optimizer.zero_grad()
-
             # Compute gradients
-            loss.retain_grad()
-            loss.backward(retain_graph=True)
+            # loss.retain_grad()
+            # loss.backward(retain_graph=True)
+            loss.backward()
 
             optimizer.step()
-            loss_temp += loss.item()
 
+            loss_temp += loss.item()
+        scheduler.step()
         # Show loss after epoch
         toc = time.time()
-        loss_temp /= args.display_interval
+        loss_temp /= iters_per_epoch
 
         iou_loss_v = iou_loss.mean().item()
         box_loss_v = box_loss.mean().item()
@@ -229,7 +283,10 @@ def train():
         
         # Check and save the best mAP
         save_name_temp = os.path.join(output_dir, 'temp')
-        map = test_for_train(save_name_temp, model, args)
+        if args.dataset == 'custom':
+            map, _ = test_for_train(save_name_temp, model, args, val_path, nc, True, True)
+        else:
+            map, _ = test_for_train(save_name_temp, model, args)
         if map > max_map:
             max_map = map
             best_map_score = round((map*100),2)

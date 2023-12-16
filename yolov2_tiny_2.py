@@ -65,8 +65,8 @@ class Yolov2(nn.Module):
         x = self.maxpool(self.lrelu(self.bn4(self.conv4(x))))
         x = self.maxpool(self.lrelu(self.bn5(self.conv5(x))))
         x = self.lrelu(self.bn6(self.conv6(x)))
-        # x = F.pad(x, (0, 1, 0, 1))
-        # x = self.slowpool(x)
+        x = F.pad(x, (0, 1, 0, 1))
+        x = self.slowpool(x)
         x = self.lrelu(self.bn7(self.conv7(x)))
         x = self.lrelu(self.bn8(self.conv8(x)))
         out = self.conv9(x)
@@ -85,16 +85,19 @@ class Yolov2(nn.Module):
         # `sigmoid` for t_x, t_y, t_c; `exp` for t_h, t_w;
         # `softmax` for (class1_score, class2_score, ...)
 
-        xy_pred = torch.sigmoid(out[:, :, 0:2])
-        conf_pred = torch.sigmoid(out[:, :, 4:5])
-        hw_pred = torch.exp(out[:, :, 2:4])
-        class_score = out[:, :, 5:]
-        class_pred = F.softmax(class_score, dim=-1)
-        delta_pred = torch.cat([xy_pred, hw_pred], dim=-1)
+        xy_pred = torch.sigmoid(out[:, :, 0:2]) # [B, H * W * num_anchors, 2]
+        conf_pred = torch.sigmoid(out[:, :, 4:5]) # [B, H * W * num_anchors, 1]
+        hw_pred = torch.exp(out[:, :, 2:4]) # [B, H * W * num_anchors, 2]
+        class_score = out[:, :, 5:]     # [B, H * W * num_anchors, num_classes] ----
+        class_pred = F.softmax(class_score, dim=-1) # [B, H * W * num_anchors, num_classes]
+        delta_pred = torch.cat([xy_pred, hw_pred], dim=-1)  # [B, H * W * num_anchors, 4]
         
         
         if training:
-            output_variable = (delta_pred, conf_pred, class_score)
+            # delt_pred: tensor containing (x,y,h,w) preds of size [B, H * W * num_anchors, 4]
+            # conf_pred: tensor containing conf preds of size [B, H * W * num_anchors, 1]
+            # class_score: tensor containing class score preds of size [B, H * W * num_anchors, num_classes]
+            output_variable = (delta_pred, conf_pred, class_score) # check --> seems like bug
             output_data = [v.data for v in output_variable]
             gt_data = (gt_boxes, gt_classes, num_boxes)
             target_data = build_target(output_data, gt_data, h, w)

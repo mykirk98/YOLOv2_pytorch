@@ -11,7 +11,89 @@ import numpy as np
 from torch.utils.data import Dataset
 from config import config as cfg
 from util.augmentation import augment_img
+import os
+import pdb
 
+
+class Custom_yolo_dataset(Dataset):
+    def __init__(self, data, train=True):
+        self.train = train
+        self.images = self._load_data(data)
+        print('done')
+
+    def _load_data(self,file):
+        images = []
+        with open(file, 'r') as f:
+            for line in f:
+                images.append(line.split()[0])
+        return images
+
+    def xywh2xyxy(self, x, w, h):
+        
+        x1 = ((float(x[0])) - (float(x[2])/2)) if ((float(x[0])) - (float(x[2])/2)) >= 0.0 else 0.0
+        y1 = ((float(x[1])) - (float(x[3])/2)) if ((float(x[1])) - (float(x[3])/2)) >= 0.0 else 0.0
+        x2 = ((float(x[0])) + (float(x[2])/2)) if ((float(x[0])) + (float(x[2])/2)) <= 1.0 else 1.0
+        y2 = ((float(x[1])) + (float(x[3])/2)) if ((float(x[1])) + (float(x[3])/2)) <= 1.0 else 1.0
+        return [x1*w, y1*h, x2*w, y2*h]
+    
+    def nroi_at(self,i):
+        im_path = self.images[i]
+        im = Image.open(im_path)
+        label_path = im_path.split('.')[0] + '.txt'     # implement no label cases (no file or empty label file)
+        boxes = []
+        gt_classes = []
+        if (os.path.isfile(label_path) == True):
+            # print('Printing current label path------','\n', f'{i}: ', label_path)
+            w, h = im.size
+            f = open(label_path, 'r')
+            boxes = []
+            gt_classes = []
+            for line in f:
+                label = line.split(None,1)
+                gt_classes.append(int(label[0]))
+                _box = label[1].split()
+                box = self.xywh2xyxy(_box, w, h)
+                # if any(x>1 for x in box) or any(x<0 for x in box):
+                #     print('---//----Extra ordinary value found in current label-------')
+                #     print('---//----Extra ordinary box: ', box)
+                #     print('---//----Path of file containing extra ordinary box: ', label_path)
+                boxes.append(box)
+            # print('Printing boxes list for current label file-----', '\n', boxes)
+            # print('Printing number of labels in current file-----', '\n', len(boxes))    
+        return im, np.array(boxes), np.array(gt_classes)
+    
+    def __getitem__(self, i):
+        im_data, boxes, gt_classes = self.nroi_at(i)
+        # w, h
+        im_info = torch.FloatTensor([im_data.size[0], im_data.size[1]])
+        if self.train:
+            # print('Trace here----//')
+            # pdb.set_trace()
+
+            im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
+
+            w, h = im_data.size[0], im_data.size[1]
+            boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
+            boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
+
+            # resize image
+            input_h, input_w = cfg.input_size
+            im_data = im_data.resize((input_w, input_h))
+            im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
+            im_data_resize = im_data_resize.permute(2, 0, 1)
+            boxes = torch.from_numpy(boxes)
+            gt_classes = torch.from_numpy(gt_classes)
+            num_obj = torch.Tensor([boxes.size(0)]).long()
+            return im_data_resize, boxes, gt_classes, num_obj
+        else:
+            input_h, input_w = cfg.test_input_size
+            im_data = im_data.resize((input_w, input_h))
+            im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
+            im_data_resize = im_data_resize.permute(2, 0, 1)
+            return im_data_resize, im_info, self.images[i]
+
+    def __len__(self):
+        return len(self.images)   
 
 class RoiDataset(Dataset):
     def __init__(self, imdb, train=True):
@@ -56,7 +138,7 @@ class RoiDataset(Dataset):
             im_data = im_data.resize((input_w, input_h))
             im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
             im_data_resize = im_data_resize.permute(2, 0, 1)
-            return im_data_resize, im_info
+            return im_data_resize, im_info, []
 
     def __len__(self):
         return len(self._roidb)

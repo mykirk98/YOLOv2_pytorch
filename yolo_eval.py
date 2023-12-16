@@ -39,7 +39,7 @@ def yolo_filter_boxes(boxes_pred, conf_pred, classes_pred, confidence_threshold=
     cls_max_conf, cls_max_id = torch.max(classes_pred, dim=-1, keepdim=True)
     cls_conf = conf_pred * cls_max_conf
 
-    pos_inds = (cls_conf > confidence_threshold).view(-1)
+    pos_inds = (cls_conf >= confidence_threshold).view(-1)
 
     filtered_boxes = boxes_pred[pos_inds, :]
 
@@ -113,7 +113,7 @@ def generate_prediction_boxes(deltas_pred):
     return boxes_pred
 
 
-def scale_boxes(boxes, im_info):
+def scale_boxes(boxes, im_info, convert):
     """
     scale predicted boxes
 
@@ -138,7 +138,8 @@ def scale_boxes(boxes, im_info):
     boxes[:, 0::2] /= scale_w
     boxes[:, 1::2] /= scale_h
 
-    boxes = xywh2xxyy(boxes)
+    if convert:
+        boxes = xywh2xxyy(boxes)
 
     # clamp boxes
     boxes[:, 0::2].clamp_(0, w-1)
@@ -147,7 +148,7 @@ def scale_boxes(boxes, im_info):
     return boxes
 
 
-def yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4):
+def yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4, scale=True):
     """
     Evaluate the yolo output, generate the final predicted boxes
 
@@ -167,7 +168,11 @@ def yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4):
     detections -- tensor of shape (None, 7) (x1, y1, x2, y2, cls_conf, cls)
     """
 
-    deltas = yolo_output[0].cpu()
+    if scale is False:
+        xywh2xyxy = False
+    else:
+        xywh2xyxy = True    
+    deltas = yolo_output[0].cpu()       # relative values 845*4
     conf = yolo_output[1].cpu()
     classes = yolo_output[2].cpu()
 
@@ -188,7 +193,11 @@ def yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4):
         return []
 
     # scale boxes
-    boxes = scale_boxes(boxes, im_info)
+    boxes = scale_boxes(boxes, im_info, xywh2xyxy)      # return boxes in xywh if xywh2xyxy is False
+
+    if scale is False:
+        boxes[:, 0::2] /= im_info['width'].item()
+        boxes[:, 1::2] /= im_info['height'].item()
 
     if cfg.debug:
         all_boxes = torch.cat([boxes, conf, cls_max_conf, cls_max_id], dim=1)
