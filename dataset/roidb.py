@@ -19,13 +19,21 @@ class Custom_yolo_dataset(Dataset):
     def __init__(self, data, train=True):
         self.train = train
         self.images = self._load_data(data)
-        print('done')
+        # print('done')
 
     def _load_data(self,file):
         images = []
         with open(file, 'r') as f:
             for line in f:
-                images.append(line.split()[0])
+                label = line.split('.')[0] + '.txt'
+                if os.path.isfile(label):
+                    with open(label, 'r') as f1:
+                        try:
+                            x = f1.readlines() 
+                            if len(x):
+                                images.append(line.split()[0])
+                        except:
+                            NotImplementedError      
         return images
 
     def xywh2xyxy(self, x, w, h):
@@ -38,14 +46,13 @@ class Custom_yolo_dataset(Dataset):
     
     def nroi_at(self,i):
         im_path = self.images[i]
-        im = Image.open(im_path)
         label_path = im_path.split('.')[0] + '.txt'     # implement no label cases (no file or empty label file)
-        boxes = []
-        gt_classes = []
-        if (os.path.isfile(label_path) == True):
-            # print('Printing current label path------','\n', f'{i}: ', label_path)
+        
+        # if (os.path.isfile(label_path) == True):
+            # print('Printing current label path------','\n', f'{i}: ', label_path)   
+        with open(label_path, 'r') as f:
+            im = Image.open(im_path)
             w, h = im.size
-            f = open(label_path, 'r')
             boxes = []
             gt_classes = []
             for line in f:
@@ -59,7 +66,7 @@ class Custom_yolo_dataset(Dataset):
                 #     print('---//----Path of file containing extra ordinary box: ', label_path)
                 boxes.append(box)
             # print('Printing boxes list for current label file-----', '\n', boxes)
-            # print('Printing number of labels in current file-----', '\n', len(boxes))    
+            # print('Printing number of labels in current file-----', '\n', len(boxes))
         return im, np.array(boxes), np.array(gt_classes)
     
     def __getitem__(self, i):
@@ -73,8 +80,9 @@ class Custom_yolo_dataset(Dataset):
             im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
 
             w, h = im_data.size[0], im_data.size[1]
-            boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
-            boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
+            if np.any(boxes):
+                boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
+                boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
 
             # resize image
             input_h, input_w = cfg.input_size
@@ -181,8 +189,11 @@ def detection_collate(batch):
     padded_classes = torch.zeros((bsize, max_num_obj,))
 
     for i in range(bsize):
-        padded_boxes[i, :num_obj[i], :] = boxes[i]
-        padded_classes[i, :num_obj[i]] = gt_classes[i]
+        if boxes[i].size()[0] > 0:
+            padded_boxes[i, :num_obj[i], :] = boxes[i]
+            padded_classes[i, :num_obj[i]] = gt_classes[i]
+        else:
+            pass    
 
     return torch.stack(im_data, 0), padded_boxes, padded_classes, torch.stack(num_obj, 0)
 
@@ -191,10 +202,3 @@ class TinyRoiDataset(RoiDataset):
     def __init__(self, imdb, num_roi):
         super(TinyRoiDataset, self).__init__(imdb)
         self._roidb = self._roidb[:num_roi]
-
-
-
-
-
-
-

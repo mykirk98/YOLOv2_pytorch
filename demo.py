@@ -43,13 +43,14 @@ def demo():
         with open(args.data, 'r') as f:
             images_names = f.readlines()
     
-    classes = ('aeroplane', 'bicycle', 'bird', 'boat',
-                            'bottle', 'bus', 'car', 'cat', 'chair',
-                            'cow', 'diningtable', 'dog', 'horse',
-                            'motorbike', 'person', 'pottedplant',
-                            'sheep', 'sofa', 'train', 'tvmonitor')
+    # classes = ('aeroplane', 'bicycle', 'bird', 'boat',
+    #                         'bottle', 'bus', 'car', 'cat', 'chair',
+    #                         'cow', 'diningtable', 'dog', 'horse',
+    #                         'motorbike', 'person', 'pottedplant',
+    #                         'sheep', 'sofa', 'train', 'tvmonitor')
+    classes = ('Vehicle', 'Rider', 'Person')        
     
-    model = Yolov2()
+    model = Yolov2(classes=classes)
     # weight_loader = WeightLoader()
     # weight_loader.load(model, 'yolo-voc.weights')
     # print('loaded')

@@ -361,7 +361,7 @@ def test(args):
 def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
     # args = parse_args()
     # make a directory to save predictions paths
-    save_dir = f'{args.output_dir}/preds'
+    save_dir = f'{temp_path}/preds'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     else:
@@ -493,7 +493,7 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
         args.gtCoordinates = 'rel'
         args.detCoordinates = 'rel'
         args.imgSize = '1920,1280'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath = 'yolov2-pytorch/output/plots'
+        args.savePath = '/home/zafar/yolov2-pytorch/results/plots'
         args.call_with_train = True
         args.showPlot = False
         map, class_metrics = pascalvoc.main(args)    

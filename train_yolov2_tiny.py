@@ -106,6 +106,21 @@ def showImg(img, labels, std=None, mean=None):
     cv2.waitKey()
     cv2.destroyAllWindows()
 
+def nan_hook(self, inp, output):
+            if not isinstance(output, tuple):
+                outputs = [output]
+            else:
+                outputs = output
+
+            for i, out in enumerate(outputs):
+                nan_mask = torch.isnan(out)
+                if nan_mask.any():
+                    print("In", self.__class__.__name__)
+                    raise RuntimeError(f"Found NAN in output {i} at indices: ", 
+                                       nan_mask.nonzero(), 
+                                       "where:", 
+                                       out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
+
 def train():
     
     # define the hyper parameters first
@@ -124,20 +139,21 @@ def train():
     
     if args.dataset == 'custom':
         data_dict = check_dataset(args.data)
-        train_path, val_path = data_dict['train'], data_dict['val']
+        train_path, val_path, val_dir = data_dict['train'], data_dict['val'], data_dict['val_dir']
         nc = int(data_dict['nc'])  # number of classes
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
         train_dataset = Custom_yolo_dataset(train_path)
+        args.val_dir = val_dir
     else:    
         args.imdb_name, args.imdbval_name = get_dataset_names(args.dataset)
         # load dataset
         print('loading dataset....')
         train_dataset = get_dataset(args.imdb_name)
     
-    output_dir = args.output_dir
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    _output_dir = os.path.join(os.getcwd(), args.output_dir)
+    if not os.path.exists(_output_dir):
+        os.makedirs(_output_dir)
 
     
     if not args.data_limit==0:
@@ -162,6 +178,9 @@ def train():
     else:
         model = Yolov2()    
     
+    # for submodule in model.modules():
+    #     submodule.register_forward_hook(nan_hook)
+    
     if args.resume:
         pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         model.load_state_dict(pre_trained_checkpoint['model'])
@@ -171,7 +190,7 @@ def train():
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[3,50,90,150,170], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,90,150,170], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -192,11 +211,11 @@ def train():
     best_map_loss  = -1 
 
     # # Check and save the best mAP
-    save_name_temp = os.path.join(output_dir, 'temp')
+    save_name_temp = os.path.join(_output_dir, 'temp')
     if args.dataset == 'custom':
-        map, _ = test_for_train(save_name_temp, model, args, val_data=val_path, _num_classes = nc, customData=True, withTrain=True)
+        map, _ = test_for_train(_output_dir, model, args, val_data=val_path, _num_classes = nc)
     else:
-        map, _ = test_for_train(save_name_temp, model, args)
+        map, _ = test_for_train(_output_dir, model, args)
     print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
     
     # Start training
@@ -215,7 +234,7 @@ def train():
 
             # Get the next batch of training data
             # print('Loading first batch of images')
-            im_data, boxes, gt_classes, num_obj = next(train_data_iter)
+            im_data, boxes, gt_classes, num_obj = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
 
             # showImg(im_data[0], boxes[0])
 
@@ -261,7 +280,7 @@ def train():
         tic = time.time()
 
         if epoch % args.save_interval == 0:
-            save_name = os.path.join(output_dir, 'yolov2_epoch_{}.pth'.format(epoch))
+            save_name = os.path.join(_output_dir, 'yolov2_epoch_{}.pth'.format(epoch))
             torch.save({
                 'model': model.module.state_dict() if args.mGPUs else model.state_dict(),
                 'epoch': epoch,
@@ -273,7 +292,7 @@ def train():
         if loss.item() < min_loss:
             min_loss = loss.item()
             print(f'\n\t-->>Saving lower loss weights at Epoch {epoch}, with loss={round(loss.item(),2)}')
-            save_name = os.path.join(output_dir, 'yolov2_least_loss.pth')
+            save_name = os.path.join(_output_dir, 'yolov2_least_loss.pth')
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
@@ -282,17 +301,17 @@ def train():
                 }, save_name)
         
         # Check and save the best mAP
-        save_name_temp = os.path.join(output_dir, 'temp')
+        save_name_temp = os.path.join(_output_dir, 'temp')
         if args.dataset == 'custom':
-            map, _ = test_for_train(save_name_temp, model, args, val_path, nc, True, True)
+            map, _ = test_for_train(_output_dir, model, args, val_path, nc)
         else:
-            map, _ = test_for_train(save_name_temp, model, args)
+            map, _ = test_for_train(_output_dir, model, args)
         if map > max_map:
             max_map = map
             best_map_score = round((map*100),2)
             best_map_epoch = epoch
             best_map_loss  = round(loss.item(),2)
-            save_name = os.path.join(output_dir, 'yolov2_best_map.pth')
+            save_name = os.path.join(_output_dir, 'yolov2_best_map.pth')
             print(f'\n\t--------------------->>Saving best weights at Epoch {epoch}, with mAP={round((map*100),2)}% and loss={round(loss.item(),2)}\n')
             torch.save({
                 'model': model.state_dict(),

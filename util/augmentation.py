@@ -189,6 +189,13 @@ def augment_img(img, boxes, gt_classes):
     au_gt_classes -- numpy array of shape (N). ground truth class index 0 ~ (N-1)
     """
     # img = np.array(img).astype(np.float32)
+    # _img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    # _box = boxes[0]
+    # cv2.rectangle(_img, (int(_box[0]), int(_box[1]), (int(_box[2]), int(_box[3]))), (0,0,255), 1)
+    # cv2.imshow('', _img)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
+    
     boxes = np.copy(boxes).astype(np.float32)
 
     for i in range(5):

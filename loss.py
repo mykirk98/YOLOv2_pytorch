@@ -206,9 +206,9 @@ def yolo_loss(output, target):
     class_mask = class_mask.view(-1)
 
     # ignore the gradient of noobject's target
-    class_keep = class_mask.nonzero().squeeze(1)
+    class_keep = class_mask.nonzero().squeeze(1) ##### check
     class_score_batch_keep = class_score_batch[class_keep, :]
-    class_target_keep = class_target[class_keep]
+    class_target_keep = class_target[class_keep]        ### check
 
     # if cfg.debug:
     #     print(class_score_batch_keep)
