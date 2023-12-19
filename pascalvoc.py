@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 
-from Object_Detection_Metrics import _init_paths
+import _init_paths
 from BoundingBox import BoundingBox
 from BoundingBoxes import BoundingBoxes
 from Evaluator import *
