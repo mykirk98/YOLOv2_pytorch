@@ -8,9 +8,12 @@
 
 path: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo
 
-train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
-val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+# train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+# val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/cleaned_waymo/train.txt
+val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/cleaned_waymo/val.txt
 test: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+
 val_dir: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo
 
 # Classes

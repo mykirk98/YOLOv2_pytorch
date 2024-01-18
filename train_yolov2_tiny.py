@@ -27,8 +27,9 @@ from Test_with_train import test_for_train
 from weight_update import *
 import cv2
 from PIL import Image
+from collections import OrderedDict
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 def parse_args():
     """
@@ -69,9 +70,31 @@ def parse_args():
                         default=160, type=int)
     parser.add_argument('--exp_name', dest='exp_name',
                         default='default', type=str)
+    parser.add_argument('--device', default=0,
+                        help='Choose a gpu device 0, 1, 2 etc.')
 
     args = parser.parse_args()
     return args
+
+def util(check_point):
+    dum = []
+    for i, (k,v) in enumerate(check_point.items()):
+        if k == 'conv9.0.weight':    #con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
+            v = torch.rand((40, 1024, 1, 1))
+            v /= 1000
+            append = (k,v)
+            dum.append(append)
+        elif k == 'conv9.0.bias':
+            v = torch.rand(40)
+            v /= 10000
+            append = (k,v)
+            dum.append(append)
+        else:
+            append = (k,v)
+            dum.append(append)
+            # print(v)            
+    modified_check_point = {"model": OrderedDict(dum)}
+    return modified_check_point
 
 def get_dataset(datasetnames):
     names = datasetnames.split('+')
@@ -125,6 +148,7 @@ def train():
     
     # define the hyper parameters first
     args = parse_args()
+    os.environ["CUDA_VISIBLE_DEVICES"] = f'{args.device}'
     args.lr = cfg.lr
     # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
@@ -181,10 +205,14 @@ def train():
     
     # for submodule in model.modules():
     #     submodule.register_forward_hook(nan_hook)
-    
+
     if args.resume:
         pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
-        model.load_state_dict(pre_trained_checkpoint['model'])
+        # model.load_state_dict(pre_trained_checkpoint['model'])
+        modified = util(pre_trained_checkpoint['model'])    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
+        # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
+        
+        model.load_state_dict(modified['model'])    
     
     toc = time.time()
     print('model loaded: cost time {:.2f}s'.format(toc-tic))
@@ -236,8 +264,8 @@ def train():
             # Get the next batch of training data
             # print('Loading first batch of images')
             im_data, boxes, gt_classes, num_obj, im_info = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
-            for i in range(im_data.shape[0]):
-                showImg(im_data[i], boxes[i])
+            # for i in range(im_data.shape[0]):
+            #     showImg(im_data[i], boxes[i])
 
             # Move the data tensors to the GPU
             if args.use_cuda:
