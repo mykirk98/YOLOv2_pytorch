@@ -133,6 +133,7 @@ def train():
     # args.data_limit = 80
     # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
     args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
+    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2_least_loss_waymo.pth') #cHANGE
 
     print('Called with args:')
     print(args)
@@ -234,9 +235,9 @@ def train():
 
             # Get the next batch of training data
             # print('Loading first batch of images')
-            im_data, boxes, gt_classes, num_obj = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
-
-            # showImg(im_data[0], boxes[0])
+            im_data, boxes, gt_classes, num_obj, im_info = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
+            for i in range(im_data.shape[0]):
+                showImg(im_data[i], boxes[i])
 
             # Move the data tensors to the GPU
             if args.use_cuda:
@@ -249,7 +250,7 @@ def train():
             im_data_variable = Variable(im_data)
 
             # Compute the losses
-            box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True)
+            box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True, im_info=im_info)
 
             # Compute the total loss
             loss = box_loss.mean() + iou_loss.mean() + class_loss.mean()

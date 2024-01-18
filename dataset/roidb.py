@@ -42,7 +42,7 @@ class Custom_yolo_dataset(Dataset):
         y1 = ((float(x[1])) - (float(x[3])/2)) if ((float(x[1])) - (float(x[3])/2)) >= 0.0 else 0.0
         x2 = ((float(x[0])) + (float(x[2])/2)) if ((float(x[0])) + (float(x[2])/2)) <= 1.0 else 1.0
         y2 = ((float(x[1])) + (float(x[3])/2)) if ((float(x[1])) + (float(x[3])/2)) <= 1.0 else 1.0
-        return [x1*w, y1*h, x2*w, y2*h]
+        return [round(x1*w,4), round(y1*h,4), round(x2*w,4), round(y2*h,4)]
     
     def nroi_at(self,i):
         im_path = self.images[i]
@@ -55,11 +55,17 @@ class Custom_yolo_dataset(Dataset):
             w, h = im.size
             boxes = []
             gt_classes = []
+            # image = im
             for line in f:
                 label = line.split(None,1)
                 gt_classes.append(int(label[0]))
                 _box = label[1].split()
                 box = self.xywh2xyxy(_box, w, h)
+                # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                # cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
+                # cv2.imshow('', image)
+                # cv2.waitKey()
+                # cv2.destroyAllWindows()
                 # if any(x>1 for x in box) or any(x<0 for x in box):
                 #     print('---//----Extra ordinary value found in current label-------')
                 #     print('---//----Extra ordinary box: ', box)
@@ -80,6 +86,15 @@ class Custom_yolo_dataset(Dataset):
             im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
 
             w, h = im_data.size[0], im_data.size[1]
+
+            # image = cv2.cvtColor(np.array(im_data), cv2.COLOR_RGB2BGR)
+            # for m in range(boxes.size[0]):
+            #     box = boxes[m]
+            #     cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
+            #     cv2.imshow('', image)
+            #     cv2.waitKey()
+            #     cv2.destroyAllWindows()
+
             if np.any(boxes):
                 boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
                 boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
@@ -92,7 +107,7 @@ class Custom_yolo_dataset(Dataset):
             boxes = torch.from_numpy(boxes)
             gt_classes = torch.from_numpy(gt_classes)
             num_obj = torch.Tensor([boxes.size(0)]).long()
-            return im_data_resize, boxes, gt_classes, num_obj
+            return im_data_resize, boxes, gt_classes, num_obj, im_info
         else:
             input_h, input_w = cfg.test_input_size
             im_data = im_data.resize((input_w, input_h))
@@ -139,7 +154,7 @@ class RoiDataset(Dataset):
             boxes = torch.from_numpy(boxes)
             gt_classes = torch.from_numpy(gt_classes)
             num_obj = torch.Tensor([boxes.size(0)]).long()
-            return im_data_resize, boxes, gt_classes, num_obj
+            return im_data_resize, boxes, gt_classes, num_obj, im_info
 
         else:
             input_h, input_w = cfg.test_input_size
@@ -183,7 +198,7 @@ def detection_collate(batch):
     # kind of hack, this will break down a list of tuple into
     # individual list
     bsize = len(batch)
-    im_data, boxes, gt_classes, num_obj = zip(*batch)
+    im_data, boxes, gt_classes, num_obj, im_info = zip(*batch)
     max_num_obj = max([x.item() for x in num_obj])
     padded_boxes = torch.zeros((bsize, max_num_obj, 4))
     padded_classes = torch.zeros((bsize, max_num_obj,))
@@ -195,7 +210,7 @@ def detection_collate(batch):
         else:
             pass    
 
-    return torch.stack(im_data, 0), padded_boxes, padded_classes, torch.stack(num_obj, 0)
+    return torch.stack(im_data, 0), padded_boxes, padded_classes, torch.stack(num_obj, 0), im_info
 
 
 class TinyRoiDataset(RoiDataset):

@@ -18,6 +18,8 @@ dog.jpg
 __pycache__/
 *.py[cod]
 *$py.class
+*.jpg
+*.txt
 
 # C extensions
 *.so

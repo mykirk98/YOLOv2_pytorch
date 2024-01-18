@@ -59,7 +59,7 @@ def demo():
     model_path = args.model_name
     print('loading model from {}'.format(model_path))
     if torch.cuda.is_available():
-        checkpoint = torch.load(model_path)
+        checkpoint = torch.load(model_path, map_location=('cuda:0'))
     else:
         checkpoint = torch.load(model_path, map_location='cpu')
     model.load_state_dict(checkpoint['model'])
@@ -88,7 +88,7 @@ def demo():
 
         yolo_output = model(im_data_variable)
         yolo_output = [item[0].data for item in yolo_output]
-        detections = yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4)
+        detections = yolo_eval(yolo_output, im_info, conf_threshold=0.05, nms_threshold=0.45)
 
         toc = time.time()
         cost_time = toc - tic

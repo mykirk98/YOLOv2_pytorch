@@ -6,12 +6,12 @@
 # └── datasets
 #     └── coco  ← downloads here
 
-path: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd
+path: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo
 
-train: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/train.txt
-val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val1k.txt
-test:   /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val.txt
-val_dir: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val1k
+train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+test: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
+val_dir: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo
 
 # Classes
 nc: 3  # number of classes

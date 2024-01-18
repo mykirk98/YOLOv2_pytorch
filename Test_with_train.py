@@ -179,7 +179,9 @@ def appendLists(a=[],b=[], im_info={}):
     h = im_info['height'].item()
     for i in range(len(b)):
         # if round(b[i][1],2) >= 0.2:
-        _smal_list = f'{int(b[i][0])} {round(b[i][1],2)} {round(b[i][2]/w,4)} {round(b[i][3]/h,4)} {round(b[i][4]/w,4)} {round(b[i][5]/h,4)} \n'
+        # _smal_list = f'{int(b[i][0])} {round(b[i][1],2)} {round(b[i][2]/w,4)} {round(b[i][3]/h,4)} {round(b[i][4]/w,4)} {round(b[i][5]/h,4)} \n'
+        _smal_list = f'{int(b[i][0])} {round(b[i][1],4)} {round(b[i][2],4)} {round(b[i][3],4)} {round(b[i][4],4)} {round(b[i][5],4)} \n'
+        # _smal_list = f'{int(b[i][0])} {round(b[i][1]/w,4)} {round(b[i][2]/h,4)} {round(b[i][3]/w,4)} {round(b[i][4]/h,4)} \n'
         a.append(_smal_list)
     if len(a)==0:
         a.append('0 0 0 0 0 \n')
@@ -370,9 +372,9 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
         os.mkdir(save_dir)
 
     if val_data is not None:
-        args.conf_thresh = 0.2
+        args.conf_thresh = 0.001
         args.nms_thresh = 0.45
-        args.scale = False
+        args.scale = True
         val_dataset = Custom_yolo_dataset(data=val_data, train=False)
         dataset_size = len(val_dataset)
         num_classes = _num_classes
@@ -447,7 +449,7 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
             else:
                 im_data_variable = Variable(im_data)
 
-            yolo_outputs = model(im_data_variable)
+            yolo_outputs = model(im_data_variable, im_info=im_infos)
             for i in range(im_data.size(0)):
                 img_id += 1
                 if args.data is not None:
@@ -487,13 +489,13 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
     if args.data is not None:
         args.gtFolder = args.val_dir
         args.detFolder = save_dir
-        args.iouThreshold = 0.5
+        args.iouThreshold = 0.45
         args.gtFormat = 'xywh'
-        args.detFormat = 'xywh'
+        args.detFormat = 'xyrb'
         args.gtCoordinates = 'rel'
-        args.detCoordinates = 'rel'
+        args.detCoordinates = 'abs'
         args.imgSize = '1920,1280'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath = '/home/zafar/yolov2-pytorch/results/plots'
+        args.savePath = '/home/zafar/yolov2_pytorch/results/plots'
         args.call_with_train = True
         args.showPlot = False
         map, class_metrics = pascalvoc.main(args)    
