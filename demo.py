@@ -11,6 +11,8 @@ from yolo_eval import yolo_eval
 from util.visualize import draw_detection_boxes
 import matplotlib.pyplot as plt
 from util.network import WeightLoader
+import cv2
+import numpy as np
 
 
 def parse_args():
@@ -29,6 +31,47 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def drawBox(label:np.array, img:np.ndarray, rel=False):
+    # for i in range(label.shape[0]):
+    h, w, _ = img.shape
+    if label.size == 6:
+        box = [label[2], label[3], label[4], label[5]]
+    elif label.size == 5:
+        box = [label[0], label[1], label[2], label[3]]    
+    elif label.size == 4:    
+        box = [label[0], label[1], label[2], label[3]]
+    else:
+        raise ValueError("Invalid size array only accept arrays of size 4 or 5")    
+    
+    color = list(np.random.random(size=3) * 256)
+    if rel:
+        img = cv2.rectangle(img,(int(box[0]*w), int(box[1]*h)), (int(box[2]*w), int(box[3]*h)), color, 3)
+    else:
+        img = cv2.rectangle(img,(int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 3)
+    return img
+
+def showImg(img, labels, meta=False, relative=False):
+    # Convert the tensor to a numpy array
+    _img = img
+    # image_np = _image.numpy().transpose((1, 2, 0))
+    # image_np = std * image_np + mean
+    # image_np = np.clip(image_np, 0, 1)*255
+    # _img = Image.fromarray(image_np.astype('uint8'), 'RGB')
+    _img = np.array(_img)
+    _img = cv2.cvtColor(_img, cv2.COLOR_RGB2BGR)
+    if meta:
+        _img = cv2.resize(_img, (int(meta['width'].item()),  int(meta['height'].item())), interpolation= cv2.INTER_LINEAR)
+    for i in range(labels.shape[0]):
+        label = labels[i]
+        conf = label[-1]
+        if conf >= 0.2:
+            if relative:
+                _img = drawBox(label, _img, True)
+            else:    
+                _img = drawBox(label, _img)
+    cv2.imshow('', _img)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
 
 def demo():
     args = parse_args()
@@ -43,12 +86,12 @@ def demo():
         with open(args.data, 'r') as f:
             images_names = f.readlines()
     
-    # classes = ('aeroplane', 'bicycle', 'bird', 'boat',
-    #                         'bottle', 'bus', 'car', 'cat', 'chair',
-    #                         'cow', 'diningtable', 'dog', 'horse',
-    #                         'motorbike', 'person', 'pottedplant',
-    #                         'sheep', 'sofa', 'train', 'tvmonitor')
-    classes = ('Vehicle', 'Rider', 'Person')        
+    classes = ('aeroplane', 'bicycle', 'bird', 'boat',
+                            'bottle', 'bus', 'car', 'cat', 'chair',
+                            'cow', 'diningtable', 'dog', 'horse',
+                            'motorbike', 'person', 'pottedplant',
+                            'sheep', 'sofa', 'train', 'tvmonitor')
+    # classes = ('Vehicle', 'Rider', 'Person')        
     
     model = Yolov2(classes=classes)
     # weight_loader = WeightLoader()
@@ -99,12 +142,13 @@ def demo():
         if len(detections)>0:
             det_boxes = detections[:, :5].cpu().numpy()
             det_classes = detections[:, -1].long().cpu().numpy()
-            im2show = draw_detection_boxes(img, det_boxes, det_classes, class_names=classes)
-        else:
-            im2show = img
-        plt.figure()
-        plt.imshow(im2show)
-        plt.show()
+            showImg(img, det_boxes)
+            # im2show = draw_detection_boxes(img, det_boxes, det_classes, class_names=classes)
+        # else:
+        #     im2show = img
+        # plt.figure()
+        # plt.imshow(im2show)
+        # plt.show()
 
 if __name__ == '__main__':
     demo()

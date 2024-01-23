@@ -3,7 +3,7 @@ config/config.py
 Object_Detection_Metrics
 results/
 val.py
-data/
+cache/
 .idea/
 .DS_Store
 runs/
@@ -12,7 +12,6 @@ tmp
 sync.sh
 output/
 reports/
-*.weights
 dog.jpg
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -20,7 +19,8 @@ __pycache__/
 *$py.class
 *.jpg
 *.txt
-
+VOCdevkit2007/
+VOCdevkit2012/
 # C extensions
 *.so
 

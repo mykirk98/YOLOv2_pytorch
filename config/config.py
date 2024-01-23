@@ -18,7 +18,7 @@ thresh = .6
 
 batch_size = 16
 
-lr = 0.0005
+lr = 0.00005
 
 decay_lrs = {
     60: 0.00001,

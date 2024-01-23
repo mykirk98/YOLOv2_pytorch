@@ -81,12 +81,12 @@ def util(check_point):
     for i, (k,v) in enumerate(check_point.items()):
         if k == 'conv9.0.weight':    #con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
             v = torch.rand((40, 1024, 1, 1))
-            v /= 1000
+            v /= 100000
             append = (k,v)
             dum.append(append)
         elif k == 'conv9.0.bias':
             v = torch.rand(40)
-            v /= 10000
+            v /= 1000
             append = (k,v)
             dum.append(append)
         else:
@@ -170,8 +170,10 @@ def train():
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
         train_dataset = Custom_yolo_dataset(train_path)
         args.val_dir = val_dir
+        _nc = nc
     else:    
         args.imdb_name, args.imdbval_name = get_dataset_names(args.dataset)
+        _nc = 20
         # load dataset
         print('loading dataset....')
         train_dataset = get_dataset(args.imdb_name)
@@ -209,10 +211,12 @@ def train():
     if args.resume:
         pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         # model.load_state_dict(pre_trained_checkpoint['model'])
-        modified = util(pre_trained_checkpoint['model'])    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
+        _model = pre_trained_checkpoint['model']
+        if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
+            pre_trained_checkpoint = util(_model)    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
         # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
         
-        model.load_state_dict(modified['model'])    
+        model.load_state_dict(pre_trained_checkpoint['model'])    
     
     toc = time.time()
     print('model loaded: cost time {:.2f}s'.format(toc-tic))
@@ -241,11 +245,11 @@ def train():
 
     # # Check and save the best mAP
     save_name_temp = os.path.join(_output_dir, 'temp')
-    if args.dataset == 'custom':
-        map, _ = test_for_train(_output_dir, model, args, val_data=val_path, _num_classes = nc)
-    else:
-        map, _ = test_for_train(_output_dir, model, args)
-    print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
+    # if args.dataset == 'custom':
+    #     map, _ = test_for_train(_output_dir, model, args, val_data=val_path, _num_classes = nc)
+    # else:
+    #     map, _ = test_for_train(_output_dir, model, args)
+    # print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
     
     # Start training
     for epoch in range(args.start_epoch, args.max_epochs+1):

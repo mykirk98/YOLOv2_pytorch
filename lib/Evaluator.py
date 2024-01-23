@@ -285,10 +285,10 @@ class Evaluator:
             #                 bbox=box)
             if savePath is not None:
                 plt.savefig(os.path.join(savePath, str(classId) + '.png'))
-            if showGraphic is True:
-                plt.show()
-                # plt.waitforbuttonpress()
-                plt.pause(0.05)
+            # if showGraphic is True:
+            #     plt.show()
+            #     # plt.waitforbuttonpress()
+            #     plt.pause(0.05)
         return results
 
     @staticmethod

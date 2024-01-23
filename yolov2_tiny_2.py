@@ -94,7 +94,7 @@ class Yolov2(nn.Module):
         class_pred = F.softmax(class_score, dim=-1) # [B, H * W * num_anchors, num_classes]
         delta_pred = torch.cat([xy_pred, hw_pred], dim=-1)  # [B, H * W * num_anchors, 4]
         
-        vis = True
+        vis = False
         if vis and training:
             for i in range(delta_pred.shape[0]):
                 _class_score = class_score[i]
