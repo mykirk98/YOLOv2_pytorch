@@ -38,11 +38,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Yolo v2')
     parser.add_argument('--max_epochs', dest='max_epochs',
                         help='number of epochs to train',
-                        default=160, type=int)
+                        default=100, type=int)
     parser.add_argument('--start_epoch', dest='start_epoch',
                         default=1, type=int)
     parser.add_argument('--batch_size', dest='batch_size',
-                        default=8, type=int)
+                        default=64, type=int)
     parser.add_argument('--data_limit', dest='data_limit',
                         default=0, type=int)
     parser.add_argument('--dataset', dest='dataset',
@@ -69,7 +69,7 @@ def parse_args():
     parser.add_argument('--weights', default='',
                         help='provide the path of weight file (.pth) if resume')
     parser.add_argument('--checkpoint_epoch', dest='checkpoint_epoch',
-                        default=160, type=int)
+                        default=100, type=int)
     parser.add_argument('--exp_name', dest='exp_name',
                         default='default', type=str)
     parser.add_argument('--device', default=0,

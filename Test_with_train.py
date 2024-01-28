@@ -456,9 +456,9 @@ def test_for_train(temp_path, model,
         os.mkdir(save_dir)
 
     if val_data is not None:
-        args.conf_thresh = 0.01
-        args.nms_thresh = 0.5
-        args.thres = 0.25
+        args.conf_thresh = 0.001
+        args.nms_thresh = 0.45
+        args.thres = 0.2
         args.scale = True
         val_dataset = Custom_yolo_dataset(data=val_data, train=False)
         dataset_size = len(val_dataset)
@@ -467,7 +467,7 @@ def test_for_train(temp_path, model,
     else:
         args.scale = True
         args.dataset = "voc07test"
-        args.conf_thresh = 0.01
+        args.conf_thresh = 0.001
         args.nms_thresh = 0.45
         # args.data_limit = 16
         # print(args)
@@ -568,21 +568,21 @@ def test_for_train(temp_path, model,
                                 # showImg(im_data[i], cls_det, im_info, False)
                                 _det1Class = cls_det.tolist()         # per class detections tensor of (N,6) [cls conf x y w h]
                                 _detAllclass = appendLists(_detAllclass, _det1Class, im_info, args.thres)
-                        if not os.path.exists(f'{save_dir}/labels'):
-                            os.mkdir(f'{save_dir}/labels')
+                        # if not os.path.exists(f'{save_dir}/labels'):
+                        #     os.mkdir(f'{save_dir}/labels')
                         if len(_detAllclass)>0:
-                            with open(f'{save_dir}/labels/{name}', 'w') as f:
+                            with open(f'{save_dir}/{name}', 'w') as f:
                                 f.writelines(_detAllclass)                                    
     if args.data is not None:
         args.gtFolder           =   args.val_dir
-        args.detFolder          =   f'{save_dir}/labels'
+        args.detFolder          =   save_dir
         args.iouThreshold       =   args.nms_thresh
         args.gtFormat           =   'xywh'
         args.detFormat          =   'xywh'
         args.gtCoordinates      =   'rel'
         args.detCoordinates     =   'rel'
-        args.imgSize            =   '1280,720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath           =   '/home/zafar/yolov2_pytorch/results/plots'
+        args.imgSize            =   '720,1280'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
+        args.savePath           =   'results'
         args.call_with_train    =   True
         args.showPlot           =   False
         args.names              =   classes
