@@ -75,6 +75,7 @@ def parse_args():
     parser.add_argument('--device', default=0,
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
+    parser.add_argument('--imgSize', default='720,1280')
 
     args = parser.parse_args()
     return args
