@@ -351,11 +351,19 @@ def main(args):
         f.write('Average Precision (AP), Precision and Recall per class:')
 
     # each detection is a class
+    if args.val:
+        _ap = []
+    try:
+        _ap
+    except:
+        _ap = None        
     for metricsPerClass in detections:
 
         # Get metric values per each class
         cl = metricsPerClass['class']
-        ap = metricsPerClass['AP']
+        ap = metricsPerClass['AP']    
+        if _ap is not None:
+            _ap.append(ap)
         precision = metricsPerClass['precision']
         recall = metricsPerClass['recall']
         totalPositives = metricsPerClass['total positives']
@@ -383,8 +391,14 @@ def main(args):
         metrics.append([cl, ap, totalPositives, total_TP, total_FP])    
 
     mAP = acc_AP / validClasses
-    mAP_str = "{0:.2f}%".format(mAP * 100)
-    print('mAP: %s' % mAP_str)
+    if args.val:
+        for i in range(len(_ap)):
+            print(f'{args.names[i]} class AP: {_ap[i]}')
+        mAP_str = "{0:.2f}%".format(mAP * 100)
+        print('All class mAP: %s' % mAP_str)    
+    else:
+        mAP_str = "{0:.2f}%".format(mAP * 100)
+        print('mAP: %s' % mAP_str)
     if f:
         f.write('\n\n\nmAP: %s' % mAP_str)
     return mAP, metrics         # metrics is a list of list containing each class metrics [class, ap, total_positive, TP, TF] 

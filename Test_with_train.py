@@ -42,7 +42,7 @@ def parse_args():
                         help='number of workers to load training data',
                         default=1, type=int)
     parser.add_argument('--bs', dest='batch_size',
-                        default=2, type=int)
+                        default=8, type=int)
     parser.add_argument('--cuda', dest='use_cuda',
                         default=True, type=bool)
     parser.add_argument('--vis', dest='vis',
@@ -260,8 +260,9 @@ def showImg(img, labels, meta, relative=False):
     cv2.destroyAllWindows()
 
 def test(args):
-    args.conf_thresh = 0.05
+    args.conf_thresh = 0.1
     args.nms_thresh = 0.45
+    args.thres = 0.3
     if args.vis:
         args.conf_thresh = 0.5
     device = int(args.device)
@@ -407,25 +408,27 @@ def test(args):
                                 cls_det[:,0] = detections[inds, -1]
                                 cls_det[:, 1:6] = detections[inds, :5]
                                 # cls_det[:, 1] = detections[inds, 4] * detections[inds, 5]
-                                showImg(im_data[i], cls_det, im_info, False)
+                                # showImg(im_data[i], cls_det, im_info, False)
                                 _det1Class = cls_det.tolist()         # per class detections tensor of (N,6) [cls conf x y w h]
-                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info)
+                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info, args.thres)
                         if not os.path.exists(f'{save_dir}/labels'):
                             os.mkdir(f'{save_dir}/labels')
                         with open(f'{save_dir}/labels/{name}', 'w') as f:
                             f.writelines(_detAllclass)                                    
     if args.data is not None:
-        args.gtFolder = val_dir
-        args.detFolder = save_dir
-        args.iouThreshold = 0.5
-        args.gtFormat = 'xywh'
-        args.detFormat = 'xywh'
-        args.gtCoordinates = 'rel'
-        args.detCoordinates = 'rel'
-        args.imgSize = '1280, 720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath = 'yolov2-pytorch/output/plots'
-        args.call_with_train = True
-        args.showPlot = False
+        args.gtFolder           =     val_dir
+        args.detFolder          =     f'{save_dir}/labels'
+        args.iouThreshold       =     0.5
+        args.gtFormat           =     'xywh'
+        args.detFormat          =     'xywh'
+        args.gtCoordinates      =     'rel'
+        args.detCoordinates     =     'rel'
+        args.imgSize            =     '1280,720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
+        args.savePath           =     '/home/zafar/yolov2_pytorch/output/plots'
+        args.call_with_train    =     True
+        args.showPlot           =     False
+        args.names              =     names
+        args.val                =     True
         map, class_metrics = pascalvoc.main(args)
     # elif args.customData and not args.withTrain:
     #     map, class_metrics = pascalvoc.main(args)    
@@ -438,7 +441,10 @@ def test(args):
         class_metrics = []
     return map, class_metrics   
 
-def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
+def test_for_train(temp_path, model, 
+                   args, val_data=None, 
+                   classes=None, 
+                   afterTrain=False):
     # args = parse_args()
     # make a directory to save predictions paths
     save_dir = f'{temp_path}/preds'
@@ -451,11 +457,12 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
 
     if val_data is not None:
         args.conf_thresh = 0.01
-        args.nms_thresh = 0.45
+        args.nms_thresh = 0.5
+        args.thres = 0.25
         args.scale = True
         val_dataset = Custom_yolo_dataset(data=val_data, train=False)
         dataset_size = len(val_dataset)
-        num_classes = _num_classes
+        num_classes = len(classes)
         # all_boxes = [[[] for _ in range(dataset_size)] for _ in range(num_classes)]
     else:
         args.scale = True
@@ -560,24 +567,26 @@ def test_for_train(temp_path, model, args, val_data=None, _num_classes=None):
                                 # cls_det[:, 1] = detections[inds, 4] * detections[inds, 5]
                                 # showImg(im_data[i], cls_det, im_info, False)
                                 _det1Class = cls_det.tolist()         # per class detections tensor of (N,6) [cls conf x y w h]
-                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info)
+                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info, args.thres)
                         if not os.path.exists(f'{save_dir}/labels'):
                             os.mkdir(f'{save_dir}/labels')
                         if len(_detAllclass)>0:
                             with open(f'{save_dir}/labels/{name}', 'w') as f:
                                 f.writelines(_detAllclass)                                    
     if args.data is not None:
-        args.gtFolder = args.val_dir
-        args.detFolder = f'{save_dir}/labels'
-        args.iouThreshold = 0.45
-        args.gtFormat = 'xywh'
-        args.detFormat = 'xywh'
-        args.gtCoordinates = 'rel'
-        args.detCoordinates = 'rel'
-        args.imgSize = '1280,720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath = '/home/zafar/yolov2_pytorch/results/plots'
-        args.call_with_train = True
-        args.showPlot = False
+        args.gtFolder           =   args.val_dir
+        args.detFolder          =   f'{save_dir}/labels'
+        args.iouThreshold       =   args.nms_thresh
+        args.gtFormat           =   'xywh'
+        args.detFormat          =   'xywh'
+        args.gtCoordinates      =   'rel'
+        args.detCoordinates     =   'rel'
+        args.imgSize            =   '1280,720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
+        args.savePath           =   '/home/zafar/yolov2_pytorch/results/plots'
+        args.call_with_train    =   True
+        args.showPlot           =   False
+        args.names              =   classes
+        args.val                =   afterTrain
         map, class_metrics = pascalvoc.main(args)    
     else:
         with open(det_file, 'wb') as f:

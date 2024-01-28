@@ -16,6 +16,7 @@ train: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/test.tx
 # val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val1k.txt
 # val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val_test/val_test.txt
 val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/test.txt
+# val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val.txt
 test: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
 
 val_dir: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/bdd_small

@@ -66,6 +66,8 @@ def parse_args():
                         default=True, type=bool)
     parser.add_argument('--resume', dest='resume',
                         default=False, type=bool)
+    parser.add_argument('--weights', default='',
+                        help='provide the path of weight file (.pth) if resume')
     parser.add_argument('--checkpoint_epoch', dest='checkpoint_epoch',
                         default=160, type=int)
     parser.add_argument('--exp_name', dest='exp_name',
@@ -153,10 +155,10 @@ def train():
     # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
-    args.batch_size = args.batch_size
+    # args.batch_size = args.batch_size
     # args.data_limit = 80
     # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
-    args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
+    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
     # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2_least_loss_waymo.pth') #cHANGE
 
     print('Called with args:')
@@ -209,7 +211,8 @@ def train():
     #     submodule.register_forward_hook(nan_hook)
 
     if args.resume:
-        pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
+        # pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
+        pre_trained_checkpoint = torch.load(args.weights,map_location='cpu') #---CHANGE
         # model.load_state_dict(pre_trained_checkpoint['model'])
         _model = pre_trained_checkpoint['model']
         if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
@@ -246,7 +249,7 @@ def train():
     # # Check and save the best mAP
     save_name_temp = os.path.join(_output_dir, 'temp')
     # if args.dataset == 'custom':
-    #     map, _ = test_for_train(_output_dir, model, args, val_data=val_path, _num_classes = nc)
+    #     map, _ = test_for_train(_output_dir, model, args, val_data=val_path, classes = names)
     # else:
     #     map, _ = test_for_train(_output_dir, model, args)
     # print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
@@ -336,7 +339,7 @@ def train():
         # Check and save the best mAP
         save_name_temp = os.path.join(_output_dir, 'temp')
         if args.dataset == 'custom':
-            map, _ = test_for_train(_output_dir, model, args, val_path, nc)
+            map, _ = test_for_train(_output_dir, model, args, val_path, names)
         else:
             map, _ = test_for_train(_output_dir, model, args)
         if map > max_map:
@@ -344,7 +347,7 @@ def train():
             best_map_score = round((map*100),2)
             best_map_epoch = epoch
             best_map_loss  = round(loss.item(),2)
-            save_name = os.path.join(_output_dir, 'yolov2_best_map.pth')
+            save_name_best = os.path.join(_output_dir, 'yolov2_best_map.pth')
             print(f'\n\t--------------------->>Saving best weights at Epoch {epoch}, with mAP={round((map*100),2)}% and loss={round(loss.item(),2)}\n')
             torch.save({
                 'model': model.state_dict(),
@@ -352,10 +355,11 @@ def train():
                 'lr': optimizer.param_groups[0]['lr'],
                 'loss': loss.item(),
                 'map': map
-                }, save_name)
+                }, save_name_best)
 
     print(f'\n\t---------------------Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
-    
+    print('Validating after Training...')
+    map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
 if __name__ == '__main__':
     train()
 
