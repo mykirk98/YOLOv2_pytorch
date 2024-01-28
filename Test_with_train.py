@@ -582,7 +582,7 @@ def test_for_train(temp_path, model,
         args.gtCoordinates      =   'rel'
         args.detCoordinates     =   'rel'
         args.imgSize            =   '720,1280'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath           =   'results'
+        args.savePath           =   args.savePath
         args.call_with_train    =   True
         args.showPlot           =   False
         args.names              =   classes

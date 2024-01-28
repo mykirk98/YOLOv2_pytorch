@@ -74,6 +74,7 @@ def parse_args():
                         default='default', type=str)
     parser.add_argument('--device', default=0,
                         help='Choose a gpu device 0, 1, 2 etc.')
+    parser.add_argument('--savePath', default='results')
 
     args = parser.parse_args()
     return args
