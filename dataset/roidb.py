@@ -16,9 +16,10 @@ import pdb
 
 
 class Custom_yolo_dataset(Dataset):
-    def __init__(self, data, train=True):
-        self.train = train
-        self.images = self._load_data(data)
+    def __init__(self, data, train=True, scale_Crop=False):
+        self.train       =  train
+        self.images      =  self._load_data(data)
+        self.scale_Crop  =  scale_Crop
         # print('done')
 
     def _load_data(self,file):
@@ -43,6 +44,47 @@ class Custom_yolo_dataset(Dataset):
         x2 = ((float(x[0])) + (float(x[2])/2)) if ((float(x[0])) + (float(x[2])/2)) <= 1.0 else 1.0
         y2 = ((float(x[1])) + (float(x[3])/2)) if ((float(x[1])) + (float(x[3])/2)) <= 1.0 else 1.0
         return [round(x1*w,4), round(y1*h,4), round(x2*w,4), round(y2*h,4)]
+    
+    def scaleAndcrop(self, img, box, sf=1.5):
+        _img = img
+        w, h = _img.size
+        _boxes = np.array(box)
+        _boxes[:,0::2] /= w
+        _boxes[:,1::2] /= h
+        img_scaled = _img.resize((int(w*sf),int(h*sf)))
+        w, h = img_scaled.size
+        _boxes[:,0::2] *= w
+        _boxes[:,1::2] *= h
+
+        x1 = int(0.20*w)
+        x2 = int(0.80*w)
+        y1 = int(0.30*h)
+        y2 = int(0.95*h)
+        img_cropped = img_scaled.crop((x1, y1, x2, y2))
+        w_, h_ = img_cropped.size
+
+        _boxes[:,0::2] -= x1
+        _boxes[:,1::2] -= y1
+        _boxes[:,0::2] = np.clip(_boxes[:,0::2], 0, w_-1)
+        _boxes[:,1::2] = np.clip(_boxes[:,1::2], 0, h_-1)
+
+        keep = (_boxes[:, 0] != _boxes[:, 2]) & (_boxes[:, 1] != _boxes[:, 3])
+        _boxes = _boxes[keep, :]
+
+        # img_ = np.array(img_cropped)
+        # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
+        # for i in range(_boxes.shape[0]):
+        #     label = _boxes[i]
+        #     x =  label[0]
+        #     y =  label[1]
+        #     p =  label[2]
+        #     q =  label[3]
+        #     cv2.rectangle(img_, (int(x),int(y)), (int(p),int(q)), (0,0,255), 2)
+        # cv2.imshow('', img_)
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+
+        return img_cropped, _boxes.tolist()
     
     def nroi_at(self,i):
         im_path = self.images[i]
@@ -71,6 +113,8 @@ class Custom_yolo_dataset(Dataset):
                 #     print('---//----Extra ordinary box: ', box)
                 #     print('---//----Path of file containing extra ordinary box: ', label_path)
                 boxes.append(box)
+            if self.train and self.scale_Crop:
+                im, boxes = self.scaleAndcrop(im,boxes)   
             # print('Printing boxes list for current label file-----', '\n', boxes)
             # print('Printing number of labels in current file-----', '\n', len(boxes))
         return im, np.array(boxes), np.array(gt_classes)

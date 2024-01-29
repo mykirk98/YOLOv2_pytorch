@@ -2,6 +2,7 @@
 config/config.py
 Object_Detection_Metrics
 results/
+output_800/
 results1/
 data2.yaml
 train_yolov2_tiny2.py

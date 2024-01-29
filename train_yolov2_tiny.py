@@ -48,7 +48,7 @@ def parse_args():
     parser.add_argument('--dataset', dest='dataset',
                         default='voc0712trainval', type=str)
     parser.add_argument('--data', type=str,
-                        default=None, help='Give the path of custom data yaml file' )
+                        default=None, help='Give the path of custom data .yaml file' )
     parser.add_argument('--nw', dest='num_workers',
                         help='number of workers to load training data',
                         default=8, type=int)
@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument('--device', default=0,
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
-    parser.add_argument('--imgSize', default='720,1280')
+    parser.add_argument('--imgSize', default='1280,720')
 
     args = parser.parse_args()
     return args
@@ -167,12 +167,13 @@ def train():
     print(args)
     
     if args.dataset == 'custom':
+        args.scaleCrop = True
         data_dict = check_dataset(args.data)
         train_path, val_path, val_dir = data_dict['train'], data_dict['val'], data_dict['val_dir']
         nc = int(data_dict['nc'])  # number of classes
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
-        train_dataset = Custom_yolo_dataset(train_path)
+        train_dataset = Custom_yolo_dataset(train_path,scale_Crop=args.scaleCrop)
         args.val_dir = val_dir
         _nc = nc
     else:    
