@@ -14,6 +14,7 @@ from util.data_util import check_dataset
 from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+import torchdata.datapipes.iter as pipes
 from dataset.factory import get_imdb
 from dataset.roidb import RoiDataset, detection_collate, Custom_yolo_dataset
 from yolov2_tiny_2 import Yolov2
@@ -28,6 +29,9 @@ from weight_update import *
 import cv2
 from PIL import Image
 from collections import OrderedDict
+import colorama
+from colorama import Fore, Back, Style
+colorama.init(autoreset=True)
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
@@ -173,7 +177,9 @@ def train():
         nc = int(data_dict['nc'])  # number of classes
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
+        print(f'loading training data from {Fore.GREEN}{Style.BRIGHT}{train_path}....')
         train_dataset = Custom_yolo_dataset(train_path,scale_Crop=args.scaleCrop)
+        # train_dataset = pipes.InMemoryCacheHolder(_train_dataset,size=2048).sharding_filter()
         args.val_dir = val_dir
         _nc = nc
     else:    
@@ -190,15 +196,15 @@ def train():
     
     if not args.data_limit==0:
         train_dataset = torch.utils.data.Subset(train_dataset, range(0, args.data_limit))
-    print('dataset loaded.')
+    print(f'{Style.BRIGHT}dataset loaded....')
 
-    print('Training Dataset: {}'.format(len(train_dataset)))
+    print(f'{Fore.GREEN}{Style.BRIGHT}Training Dataset: {len(train_dataset)}')
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,    #args.batch_size
                                   shuffle=True, num_workers=args.num_workers,      # args.num_workers
                                   collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
-    print('initialize the model')
+    print(f'{Style.BRIGHT}initialize the model....')
     tic = time.time()
     try:
         nc
@@ -214,11 +220,14 @@ def train():
     #     submodule.register_forward_hook(nan_hook)
 
     if args.resume:
+        print(f'Loading the pre-trained checkpoint from {Fore.GREEN}{Style.BRIGHT}{args.weights}....')
         # pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         pre_trained_checkpoint = torch.load(args.weights,map_location='cpu') #---CHANGE
         # model.load_state_dict(pre_trained_checkpoint['model'])
         _model = pre_trained_checkpoint['model']
         if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
+            print(f'{Style.BRIGHT}Last layer of pretrain checkpoint is different')
+            print(f'{Style.BRIGHT}Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
             pre_trained_checkpoint = util(_model)    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
         # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
         
@@ -360,17 +369,11 @@ def train():
                 'map': map
                 }, save_name_best)
 
-    print(f'\n\t---------------------Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
-    print('Validating after Training...')
+    print(f'\n\t---------------------{Style.BRIGHT}Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
+    print(f'{Style.BRIGHT}Validating after Training...')
+    print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
+    checkpoint = torch.load(save_name_best,map_location='cpu')
+    model.load_state_dict(checkpoint['model'])
     map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
 if __name__ == '__main__':
     train()
-
-
-
-
-
-
-
-
-

@@ -45,10 +45,11 @@ class Custom_yolo_dataset(Dataset):
         y2 = ((float(x[1])) + (float(x[3])/2)) if ((float(x[1])) + (float(x[3])/2)) <= 1.0 else 1.0
         return [round(x1*w,4), round(y1*h,4), round(x2*w,4), round(y2*h,4)]
     
-    def scaleAndcrop(self, img, box, sf=1.5):
+    def scaleAndcrop(self, img, box, classes, sf=1.6):
         _img = img
         w, h = _img.size
-        _boxes = np.array(box)
+        _boxes   = np.array(box)
+        _classes = np.array(classes)
         _boxes[:,0::2] /= w
         _boxes[:,1::2] /= h
         img_scaled = _img.resize((int(w*sf),int(h*sf)))
@@ -58,18 +59,22 @@ class Custom_yolo_dataset(Dataset):
 
         x1 = int(0.20*w)
         x2 = int(0.80*w)
-        y1 = int(0.30*h)
-        y2 = int(0.95*h)
+        y1 = int(0.25*h)
+        y2 = int(0.90*h)
         img_cropped = img_scaled.crop((x1, y1, x2, y2))
         w_, h_ = img_cropped.size
 
         _boxes[:,0::2] -= x1
         _boxes[:,1::2] -= y1
-        _boxes[:,0::2] = np.clip(_boxes[:,0::2], 0, w_-1)
-        _boxes[:,1::2] = np.clip(_boxes[:,1::2], 0, h_-1)
+        _boxes[:,0::2] =  np.clip(_boxes[:,0::2], 0, w_-1)
+        _boxes[:,1::2] =  np.clip(_boxes[:,1::2], 0, h_-1)
 
-        keep = (_boxes[:, 0] != _boxes[:, 2]) & (_boxes[:, 1] != _boxes[:, 3])
-        _boxes = _boxes[keep, :]
+        keep     = (_boxes[:, 0] != _boxes[:, 2]) & (_boxes[:, 1] != _boxes[:, 3])
+        _boxes   = _boxes[keep, :]
+        _classes = _classes[keep]
+        keep =  ((_boxes[:, 2] - _boxes[:, 0]) > 8) & ((_boxes[:, 3] - _boxes[:, 1])>6)
+        _boxes   = _boxes[keep, :]
+        _classes = _classes[keep]
 
         # img_ = np.array(img_cropped)
         # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
@@ -84,7 +89,7 @@ class Custom_yolo_dataset(Dataset):
         # cv2.waitKey()
         # cv2.destroyAllWindows()
 
-        return img_cropped, _boxes.tolist()
+        return img_cropped, _boxes.tolist(), _classes.tolist()
     
     def nroi_at(self,i):
         im_path = self.images[i]
@@ -93,8 +98,8 @@ class Custom_yolo_dataset(Dataset):
         # if (os.path.isfile(label_path) == True):
             # print('Printing current label path------','\n', f'{i}: ', label_path)   
         with open(label_path, 'r') as f:
-            im = Image.open(im_path)
-            w, h = im.size
+            im    = Image.open(im_path)
+            w, h  = im.size
             boxes = []
             gt_classes = []
             # image = im
@@ -102,7 +107,7 @@ class Custom_yolo_dataset(Dataset):
                 label = line.split(None,1)
                 gt_classes.append(int(label[0]))
                 _box = label[1].split()
-                box = self.xywh2xyxy(_box, w, h)
+                box  = self.xywh2xyxy(_box, w, h)
                 # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
                 # cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
                 # cv2.imshow('', image)
@@ -114,7 +119,7 @@ class Custom_yolo_dataset(Dataset):
                 #     print('---//----Path of file containing extra ordinary box: ', label_path)
                 boxes.append(box)
             if self.train and self.scale_Crop:
-                im, boxes = self.scaleAndcrop(im,boxes)   
+                im, boxes, gt_classes = self.scaleAndcrop(im,boxes,gt_classes)   
             # print('Printing boxes list for current label file-----', '\n', boxes)
             # print('Printing number of labels in current file-----', '\n', len(boxes))
         return im, np.array(boxes), np.array(gt_classes)
@@ -126,32 +131,33 @@ class Custom_yolo_dataset(Dataset):
         if self.train:
             # print('Trace here----//')
             # pdb.set_trace()
+            if boxes.shape[0] > 0:
+                im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
 
-            im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
+                w, h = im_data.size[0], im_data.size[1]
 
-            w, h = im_data.size[0], im_data.size[1]
+                # image = cv2.cvtColor(np.array(im_data), cv2.COLOR_RGB2BGR)
+                # for m in range(boxes.size[0]):
+                #     box = boxes[m]
+                #     cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
+                #     cv2.imshow('', image)
+                #     cv2.waitKey()
+                #     cv2.destroyAllWindows()
 
-            # image = cv2.cvtColor(np.array(im_data), cv2.COLOR_RGB2BGR)
-            # for m in range(boxes.size[0]):
-            #     box = boxes[m]
-            #     cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
-            #     cv2.imshow('', image)
-            #     cv2.waitKey()
-            #     cv2.destroyAllWindows()
+                if np.any(boxes):
+                    boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
+                    boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
 
-            if np.any(boxes):
-                boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
-                boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
-
-            # resize image
-            input_h, input_w = cfg.input_size
-            im_data = im_data.resize((input_w, input_h))
-            im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
-            im_data_resize = im_data_resize.permute(2, 0, 1)
-            boxes = torch.from_numpy(boxes)
-            gt_classes = torch.from_numpy(gt_classes)
-            num_obj = torch.Tensor([boxes.size(0)]).long()
-            return im_data_resize, boxes, gt_classes, num_obj, im_info
+                # resize image
+                input_h, input_w = cfg.input_size
+                im_data = im_data.resize((input_w, input_h))
+                im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
+                im_data_resize = im_data_resize.permute(2, 0, 1)
+                boxes = torch.from_numpy(boxes)
+                gt_classes = torch.from_numpy(gt_classes)
+                num_obj = torch.Tensor([boxes.size(0)]).long()
+                return im_data_resize, boxes, gt_classes, num_obj, im_info
+            return None, None, None, None, None
         else:
             input_h, input_w = cfg.test_input_size
             im_data = im_data.resize((input_w, input_h))
@@ -243,14 +249,25 @@ def detection_collate(batch):
     # individual list
     bsize = len(batch)
     im_data, boxes, gt_classes, num_obj, im_info = zip(*batch)
-    max_num_obj = max([x.item() for x in num_obj])
-    padded_boxes = torch.zeros((bsize, max_num_obj, 4))
+    # check for None entries and remove them
+    im_data     =  tuple(xi for xi in im_data    if xi is not None)
+    boxes       =  tuple(xi for xi in boxes      if xi is not None)
+    gt_classes  =  tuple(xi for xi in gt_classes if xi is not None)
+    num_obj     =  tuple(xi for xi in num_obj    if xi is not None)
+    im_info     =  tuple(xi for xi in im_info    if xi is not None)
+    
+    cur_bsize   =  len(im_data)
+    if cur_bsize != bsize:
+        bsize = cur_bsize
+    
+    max_num_obj    = max([x.item() for x in num_obj])
+    padded_boxes   = torch.zeros((bsize, max_num_obj, 4))
     padded_classes = torch.zeros((bsize, max_num_obj,))
 
     for i in range(bsize):
-        if boxes[i].size()[0] > 0:
+        if len(boxes[i]) > 0:
             padded_boxes[i, :num_obj[i], :] = boxes[i]
-            padded_classes[i, :num_obj[i]] = gt_classes[i]
+            padded_classes[i, :num_obj[i]]  = gt_classes[i]
         else:
             pass    
 

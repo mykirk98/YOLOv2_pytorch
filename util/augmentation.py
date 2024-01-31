@@ -36,6 +36,7 @@ def random_scale_translation(img, boxes, jitter=0.2):
     cropped = img.crop((pl, pt, pl + sw - 1, pt + sh - 1))
 
     # update boxes accordingly
+    # print(boxes.shape)
     boxes[:, 0::2] -= pl
     boxes[:, 1::2] -= pt
 

@@ -18,7 +18,7 @@ thresh = .6
 
 batch_size = 16
 
-lr = 0.0005
+lr = 0.00005
 
 decay_lrs = {
     60: 0.00001,
@@ -26,7 +26,7 @@ decay_lrs = {
 }
 
 momentum = 0.9
-weight_decay = 0.00005
+weight_decay = 0.0005
 
 
 # multi-scale training:
