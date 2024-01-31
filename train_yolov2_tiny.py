@@ -171,7 +171,7 @@ def train():
     print(args)
     
     if args.dataset == 'custom':
-        args.scaleCrop = True
+        args.scaleCrop = False
         data_dict = check_dataset(args.data)
         train_path, val_path, val_dir = data_dict['train'], data_dict['val'], data_dict['val_dir']
         nc = int(data_dict['nc'])  # number of classes
