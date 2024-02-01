@@ -152,26 +152,18 @@ def nan_hook(self, inp, output):
                                        "where:", 
                                        out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
 
-def train():
-    
-    # define the hyper parameters first
-    args = parse_args()
+def train(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = f'{args.device}'
     args.lr = cfg.lr
     # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
-    # args.batch_size = args.batch_size
-    # args.data_limit = 80
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2_least_loss_waymo.pth') #cHANGE
 
     print('Called with args:')
     print(args)
     
     if args.dataset == 'custom':
-        args.scaleCrop = False
+        args.scaleCrop = True
         data_dict = check_dataset(args.data)
         train_path, val_path, val_dir = data_dict['train'], data_dict['val'], data_dict['val_dir']
         nc = int(data_dict['nc'])  # number of classes
@@ -191,6 +183,7 @@ def train():
     
     _output_dir = os.path.join(os.getcwd(), args.output_dir)
     if not os.path.exists(_output_dir):
+        print(f'making: {Fore.GREEN}{_output_dir}')
         os.makedirs(_output_dir)
 
     
@@ -204,7 +197,7 @@ def train():
                                   collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
-    print(f'{Style.BRIGHT}initialize the model....')
+    print(f'initialize the model....')
     tic = time.time()
     try:
         nc
@@ -226,8 +219,8 @@ def train():
         # model.load_state_dict(pre_trained_checkpoint['model'])
         _model = pre_trained_checkpoint['model']
         if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
-            print(f'{Style.BRIGHT}Last layer of pretrain checkpoint is different')
-            print(f'{Style.BRIGHT}Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
+            print(f'Last layer of pretrain checkpoint is different')
+            print(f'Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
             pre_trained_checkpoint = util(_model)    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
         # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
         
@@ -375,5 +368,9 @@ def train():
     checkpoint = torch.load(save_name_best,map_location='cpu')
     model.load_state_dict(checkpoint['model'])
     map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+
+
 if __name__ == '__main__':
-    train()
+    # define the hyper parameters first
+    args = parse_args()
+    train(args)
