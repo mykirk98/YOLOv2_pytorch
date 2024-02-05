@@ -231,7 +231,7 @@ def train(args):
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,90,150,170], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,30,40,60,90,120,150], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -363,11 +363,12 @@ def train(args):
                 }, save_name_best)
 
     print(f'\n\t---------------------{Style.BRIGHT}Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
-    print(f'{Style.BRIGHT}Validating after Training...')
-    print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
-    checkpoint = torch.load(save_name_best,map_location='cpu')
-    model.load_state_dict(checkpoint['model'])
-    map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+    if save_name_best:
+        print(f'{Style.BRIGHT}Validating after Training...')
+        print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
+        checkpoint = torch.load(save_name_best,map_location='cpu')
+        model.load_state_dict(checkpoint['model'])
+        map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
 
 
 if __name__ == '__main__':

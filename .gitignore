@@ -1,4 +1,5 @@
 .vscode/
+data.yaml
 config/config.py
 Object_Detection_Metrics
 results/

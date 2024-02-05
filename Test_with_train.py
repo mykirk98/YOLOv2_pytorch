@@ -369,7 +369,7 @@ def test_for_train(temp_path, model,
         print(f'making: {Fore.GREEN}{save_dir}')
         os.makedirs(save_dir)
     else:
-        print(f'{Fore.GREEN}{save_dir} {Fore.RESET}exists removing...')
+        print(f'{Fore.GREEN}{save_dir} {Fore.RESET}already exists removing...')
         shutil.rmtree(f'{save_dir}', ignore_errors=True)
         print(f'making: {Fore.GREEN}{save_dir}')
         os.makedirs(save_dir)

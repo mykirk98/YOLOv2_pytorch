@@ -10,7 +10,7 @@ from PIL import Image
 import numpy as np
 from torch.utils.data import Dataset
 from config import config as cfg
-from util.augmentation import augment_img
+from util.augmentation import augment_img, scaleAndcrop
 import os
 import pdb
 
@@ -45,52 +45,6 @@ class Custom_yolo_dataset(Dataset):
         y2 = ((float(x[1])) + (float(x[3])/2)) if ((float(x[1])) + (float(x[3])/2)) <= 1.0 else 1.0
         return [round(x1*w,4), round(y1*h,4), round(x2*w,4), round(y2*h,4)]
     
-    def scaleAndcrop(self, img, box, classes, sf=1.6):
-        _img = img
-        w, h = _img.size
-        _boxes   = np.array(box)
-        _classes = np.array(classes)
-        _boxes[:,0::2] /= w
-        _boxes[:,1::2] /= h
-        img_scaled = _img.resize((int(w*sf),int(h*sf)))
-        w, h = img_scaled.size
-        _boxes[:,0::2] *= w
-        _boxes[:,1::2] *= h
-
-        x1 = int(0.20*w)
-        x2 = int(0.80*w)
-        y1 = int(0.25*h)
-        y2 = int(0.90*h)
-        img_cropped = img_scaled.crop((x1, y1, x2, y2))
-        w_, h_ = img_cropped.size
-
-        _boxes[:,0::2] -= x1
-        _boxes[:,1::2] -= y1
-        _boxes[:,0::2] =  np.clip(_boxes[:,0::2], 0, w_-1)
-        _boxes[:,1::2] =  np.clip(_boxes[:,1::2], 0, h_-1)
-
-        keep     = (_boxes[:, 0] != _boxes[:, 2]) & (_boxes[:, 1] != _boxes[:, 3])
-        _boxes   = _boxes[keep, :]
-        _classes = _classes[keep]
-        keep =  ((_boxes[:, 2] - _boxes[:, 0]) > 8) & ((_boxes[:, 3] - _boxes[:, 1])>6)
-        _boxes   = _boxes[keep, :]
-        _classes = _classes[keep]
-
-        # img_ = np.array(img_cropped)
-        # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
-        # for i in range(_boxes.shape[0]):
-        #     label = _boxes[i]
-        #     x =  label[0]
-        #     y =  label[1]
-        #     p =  label[2]
-        #     q =  label[3]
-        #     cv2.rectangle(img_, (int(x),int(y)), (int(p),int(q)), (0,0,255), 2)
-        # cv2.imshow('', img_)
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-
-        return img_cropped, _boxes.tolist(), _classes.tolist()
-    
     def nroi_at(self,i):
         im_path = self.images[i]
         label_path = im_path.split('.')[0] + '.txt'     # implement no label cases (no file or empty label file)
@@ -108,20 +62,7 @@ class Custom_yolo_dataset(Dataset):
                 gt_classes.append(int(label[0]))
                 _box = label[1].split()
                 box  = self.xywh2xyxy(_box, w, h)
-                # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-                # cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
-                # cv2.imshow('', image)
-                # cv2.waitKey()
-                # cv2.destroyAllWindows()
-                # if any(x>1 for x in box) or any(x<0 for x in box):
-                #     print('---//----Extra ordinary value found in current label-------')
-                #     print('---//----Extra ordinary box: ', box)
-                #     print('---//----Path of file containing extra ordinary box: ', label_path)
                 boxes.append(box)
-            if self.train and self.scale_Crop:
-                im, boxes, gt_classes = self.scaleAndcrop(im,boxes,gt_classes)   
-            # print('Printing boxes list for current label file-----', '\n', boxes)
-            # print('Printing number of labels in current file-----', '\n', len(boxes))
         return im, np.array(boxes), np.array(gt_classes)
     
     def __getitem__(self, i):
@@ -129,35 +70,32 @@ class Custom_yolo_dataset(Dataset):
         # w, h
         im_info = torch.FloatTensor([im_data.size[0], im_data.size[1]])
         if self.train:
-            # print('Trace here----//')
-            # pdb.set_trace()
-            if boxes.shape[0] > 0:
-                im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
+            
+            im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes, self.scale_Crop)
 
-                w, h = im_data.size[0], im_data.size[1]
+            w, h = im_data.size[0], im_data.size[1]
 
-                # image = cv2.cvtColor(np.array(im_data), cv2.COLOR_RGB2BGR)
-                # for m in range(boxes.size[0]):
-                #     box = boxes[m]
-                #     cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
-                #     cv2.imshow('', image)
-                #     cv2.waitKey()
-                #     cv2.destroyAllWindows()
+            # image = cv2.cvtColor(np.array(im_data), cv2.COLOR_RGB2BGR)
+            # for m in range(boxes.size[0]):
+            #     box = boxes[m]
+            #     cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
+            #     cv2.imshow('', image)
+            #     cv2.waitKey()
+            #     cv2.destroyAllWindows()
 
-                if np.any(boxes):
-                    boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
-                    boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
+            if np.any(boxes):
+                boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.0001, 0.9999)
+                boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.0001, 0.9999)
 
-                # resize image
-                input_h, input_w = cfg.input_size
-                im_data = im_data.resize((input_w, input_h))
-                im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
-                im_data_resize = im_data_resize.permute(2, 0, 1)
-                boxes = torch.from_numpy(boxes)
-                gt_classes = torch.from_numpy(gt_classes)
-                num_obj = torch.Tensor([boxes.size(0)]).long()
-                return im_data_resize, boxes, gt_classes, num_obj, im_info
-            return None, None, None, None, None
+            # resize image
+            input_h, input_w = cfg.input_size
+            im_data = im_data.resize((input_w, input_h))
+            im_data_resize = torch.from_numpy(np.array(im_data)).float() / 255
+            im_data_resize = im_data_resize.permute(2, 0, 1)
+            boxes = torch.from_numpy(boxes)
+            gt_classes = torch.from_numpy(gt_classes)
+            num_obj = torch.Tensor([boxes.size(0)]).long()
+            return im_data_resize, boxes, gt_classes, num_obj, im_info
         else:
             input_h, input_w = cfg.test_input_size
             im_data = im_data.resize((input_w, input_h))
