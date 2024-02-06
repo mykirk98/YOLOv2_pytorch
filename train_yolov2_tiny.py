@@ -89,10 +89,10 @@ def parse_args():
                         default=False, type=bool,
                         help='Set true to remove small objects')
     parser.add_argument('--pix_th', dest='pix_th', 
-                        default=12, type=int,
+                        default=11, type=int,
                         help='Pixel Threshold value') 
     parser.add_argument('--asp_th', dest='asp_th', 
-                        default=1.8, type=float,
+                        default=1.4, type=float,
                         help='Aspect Ratio threshold')
     args = parser.parse_args()
     return args
@@ -183,7 +183,11 @@ def train(args):
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
         print(f'loading training data from {Fore.GREEN}{Style.BRIGHT}{train_path}....')
-        train_dataset = Custom_yolo_dataset(train_path, cleaning=args.cleaning, pix_th=args.pix_th, asp_th=args.asp_th, scale_Crop=args.scaleCrop)
+        train_dataset = Custom_yolo_dataset(train_path,
+                                            cleaning=args.cleaning,
+                                            pix_th=args.pix_th,
+                                            asp_th=args.asp_th,
+                                            scale_Crop=args.scaleCrop)
         # train_dataset = pipes.InMemoryCacheHolder(_train_dataset,size=2048).sharding_filter()
         args.val_dir = val_dir
         _nc = nc
