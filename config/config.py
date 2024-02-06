@@ -6,8 +6,8 @@ anchors = [[0.34,0.60], [0.83,1.41], [1.85,2.55], [3.45,4.78], [6.03,9.07]]
 
 object_scale = 5
 noobject_scale = 1
-class_scale = 0.4
-coord_scale = 0.4
+class_scale = 1
+coord_scale = 1
 
 saturation = 1.5
 exposure = 1.5
@@ -19,7 +19,7 @@ thresh = .6
 
 batch_size = 16
 
-lr = 0.0001
+lr = 0.01
 
 decay_lrs = {
     60: 0.00001,
@@ -27,7 +27,7 @@ decay_lrs = {
 }
 
 momentum = 0.9
-weight_decay = 0.0005
+weight_decay = 0.00005
 
 
 # multi-scale training:

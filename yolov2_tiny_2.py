@@ -14,6 +14,9 @@ from loss import build_target, yolo_loss
 
 from yolo_eval import yolo_eval
 
+torch.manual_seed(0)
+np.random.seed(0)
+
 class Yolov2(nn.Module):
     num_classes = 20
     num_anchors = 5

@@ -13,6 +13,7 @@ from config import config as cfg
 from util.bbox import generate_all_anchors, xywh2xxyy, box_transform_inv, box_ious, xxyy2xywh, box_transform
 import torch.nn.functional as F
 
+torch.manual_seed(0)
 
 def build_target(output, gt_data, H, W):
     """
@@ -216,7 +217,7 @@ def yolo_loss(output, target):
 
     # calculate the loss, normalized by batch size.
     box_loss = 1 / b * cfg.coord_scale * F.mse_loss(delta_pred_batch * box_mask, box_target * box_mask, reduction='sum') / 2.0
-    iou_loss = 1 / b * 0.4 * F.mse_loss(conf_pred_batch * iou_mask, iou_target * iou_mask, reduction='sum') / 2.0
+    iou_loss = 1 / b * F.mse_loss(conf_pred_batch * iou_mask, iou_target * iou_mask, reduction='sum') / 2.0
     class_loss = 1 / b * cfg.class_scale * F.cross_entropy(class_score_batch_keep, class_target_keep, reduction='sum')
 
     return box_loss, iou_loss, class_loss

@@ -29,6 +29,9 @@ from colorama import Fore, Back, Style
 colorama.init(autoreset=True)
 warnings.filterwarnings('ignore')
 
+torch.manual_seed(0)
+np.random.seed(0)
+
 def parse_args():
 
     parser = argparse.ArgumentParser('Yolo v2')
@@ -63,6 +66,7 @@ def parse_args():
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
     parser.add_argument('--imgSize', default='1280,720')
+    parser.add_argument('--self_training', default=False)
 
     args = parser.parse_args()
     return args
@@ -332,32 +336,34 @@ def test(args):
                             os.mkdir(f'{save_dir}/labels')
                         with open(f'{save_dir}/labels/{name}', 'w') as f:
                             f.writelines(_detAllclass)                                    
-    if args.data is not None:
-        args.gtFolder           =     val_dir
-        args.detFolder          =     f'{save_dir}/labels'
-        args.iouThreshold       =     0.5
-        args.gtFormat           =     'xywh'
-        args.detFormat          =     'xywh'
-        args.gtCoordinates      =     'rel'
-        args.detCoordinates     =     'rel'
-        args.imgSize            =     args.imgSize   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath           =     args.savePath
-        args.call_with_train    =     True
-        args.showPlot           =     False
-        args.names              =     names
-        args.val                =     True
-        map, class_metrics = pascalvoc.main(args)
-    # elif args.customData and not args.withTrain:
-    #     map, class_metrics = pascalvoc.main(args)    
+    if not args.self_training:
+        if args.data is not None:
+            args.gtFolder           =     val_dir
+            args.detFolder          =     f'{save_dir}/labels'
+            args.iouThreshold       =     0.5
+            args.gtFormat           =     'xywh'
+            args.detFormat          =     'xywh'
+            args.gtCoordinates      =     'rel'
+            args.detCoordinates     =     'rel'
+            args.imgSize            =     args.imgSize   # for bdd --> 1280, 720 and waymo --> 1920, 1280
+            args.savePath           =     args.savePath
+            args.call_with_train    =     True
+            args.showPlot           =     False
+            args.names              =     names
+            args.val                =     True
+            map, class_metrics = pascalvoc.main(args)
+        # elif args.customData and not args.withTrain:
+        #     map, class_metrics = pascalvoc.main(args)    
+        else:
+            with open(det_file, 'wb') as f:
+                pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
+
+            # map = val_imdb.evaluate_detections(all_boxes, output_dir=args.output_dir)
+            map = val_imdb.evaluate_detections_with_train(all_boxes, output_dir=args.output_dir)
+            class_metrics = []
+        return map, class_metrics   
     else:
-        with open(det_file, 'wb') as f:
-            pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
-
-        # map = val_imdb.evaluate_detections(all_boxes, output_dir=args.output_dir)
-        map = val_imdb.evaluate_detections_with_train(all_boxes, output_dir=args.output_dir)
-        class_metrics = []
-    return map, class_metrics   
-
+        print(f'{Fore.GREEN} Detections saved in the designated folder for pseudo-label generation')
 def test_for_train(temp_path, model, 
                    args, val_data=None, 
                    classes=None, 

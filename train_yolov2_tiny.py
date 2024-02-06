@@ -33,6 +33,9 @@ import colorama
 from colorama import Fore, Back, Style
 colorama.init(autoreset=True)
 
+
+torch.manual_seed(0)
+np.random.seed(0)
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 def parse_args():
@@ -231,7 +234,7 @@ def train(args):
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,30,40,60,90,120,150], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,20,60,120,150], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -293,14 +296,17 @@ def train(args):
             box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True, im_info=im_info)
 
             # Compute the total loss
-            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean()
-
+            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean() 
+            
             # Clear gradients
             optimizer.zero_grad()
             # Compute gradients
             # loss.retain_grad()
             # loss.backward(retain_graph=True)
             loss.backward()
+
+            # Gradient clipping to prevent nans
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 10., norm_type=2)
 
             optimizer.step()
 
