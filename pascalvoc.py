@@ -3,6 +3,7 @@ import glob
 import os
 import shutil
 import sys
+from colorama import Fore, Back, Style
 
 import _init_paths
 from BoundingBox import BoundingBox
@@ -357,18 +358,29 @@ def main(args):
         _ap
     except:
         _ap = None        
+    TP = 0
+    FP = 0
+    Positives = 0
     for metricsPerClass in detections:
 
         # Get metric values per each class
         cl = metricsPerClass['class']
         ap = metricsPerClass['AP']    
-        if _ap is not None:
-            _ap.append(ap)
+         
         precision = metricsPerClass['precision']
         recall = metricsPerClass['recall']
         totalPositives = metricsPerClass['total positives']
         total_TP = metricsPerClass['total TP']
         total_FP = metricsPerClass['total FP']
+        
+        Positives += totalPositives
+        TP        += total_TP
+        FP        += total_FP
+        
+        if _ap is not None: 
+            _ap.append({'AP': ap, 'Precision': precision, 'Recall': recall,
+                        'TP': total_TP, 'FP':total_FP, 'Positives': totalPositives})
+                
         
 
         if totalPositives > 0:
@@ -390,15 +402,40 @@ def main(args):
                 f.write('\nRecall: %s' % rec)
         metrics.append([cl, ap, totalPositives, total_TP, total_FP])    
 
-    mAP = acc_AP / validClasses
-    if args.val:
+    mAP  = acc_AP / validClasses
+    prec = (TP / (TP + FP))
+    # FN   = Positives - TP
+    rec  = TP / Positives
+    
+    if args.val and _ap is not None:
+        s = ('%20s' + '%11s' * 5) % ('Class', 'TP', 'FP', 'P', 'R', 'mAP@.5')
+        print(f'{Style.BRIGHT}{s}')
+        mAP_str = ('%20s' + '%11s' * 5) % ('ALL', TP, FP, round(prec*100, 2), round(rec*100, 2), round(mAP*100,2))
+        print(f'{mAP_str}')
         for i in range(len(_ap)):
-            print(f'{args.names[i]} class AP: {_ap[i]}')
-        mAP_str = "{0:.2f}%".format(mAP * 100)
-        print('All class mAP: %s' % mAP_str)    
+            class_i     =  _ap[i]
+            Positives_i =  class_i['Positives']
+            TP_i        =  class_i['TP']
+            FP_i        =  class_i['FP']
+            FN_i        =  Positives_i - TP_i
+            prec_i      =  TP_i / (TP_i + FP_i)
+            rec_i       =  TP_i / (TP_i + FN_i)
+            mAP_str_i   =  ('%20s' + '%11s' * 5) % (args.names[i], 
+                                                    round(TP_i,2), 
+                                                    round(FP_i, 2), 
+                                                    round(prec_i*100, 2), 
+                                                    round(rec_i*100, 2), 
+                                                    round(class_i['AP']*100,2))
+            print(f'{mAP_str_i}')
+        # mAP_str = "{0:.2f}%".format(mAP * 100)
+        # print('All class mAP: %s' % mAP_str)    
     else:
-        mAP_str = "{0:.2f}%".format(mAP * 100)
-        print('mAP: %s' % mAP_str)
+        s = ('%20s' + '%11s' * 5) % ('Class', 'TP', 'FP', 'P', 'R', 'mAP@.5')
+        print(f'{Style.BRIGHT}{s}')
+        mAP_str = ('%20s' + '%11s' * 5) % ('ALL', TP, FP, round(prec*100, 2), round(rec*100, 2), round(mAP*100,2))
+        print(f'{mAP_str}')
+        # mAP_str = "{0:.2f}%".format(mAP * 100)
+        # print('mAP: %s' % mAP_str)
     if f:
         f.write('\n\n\nmAP: %s' % mAP_str)
     return mAP, metrics         # metrics is a list of list containing each class metrics [class, ap, total_positive, TP, TF] 

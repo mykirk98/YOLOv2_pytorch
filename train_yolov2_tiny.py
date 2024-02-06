@@ -14,6 +14,7 @@ from util.data_util import check_dataset
 from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+import torchdata.datapipes.iter as pipes
 from dataset.factory import get_imdb
 from dataset.roidb import RoiDataset, detection_collate, Custom_yolo_dataset
 from yolov2_tiny_2 import Yolov2
@@ -28,7 +29,13 @@ from weight_update import *
 import cv2
 from PIL import Image
 from collections import OrderedDict
+import colorama
+from colorama import Fore, Back, Style
+colorama.init(autoreset=True)
 
+
+torch.manual_seed(0)
+np.random.seed(0)
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 def parse_args():
@@ -48,7 +55,7 @@ def parse_args():
     parser.add_argument('--dataset', dest='dataset',
                         default='voc0712trainval', type=str)
     parser.add_argument('--data', type=str,
-                        default=None, help='Give the path of custom data yaml file' )
+                        default=None, help='Give the path of custom data .yaml file' )
     parser.add_argument('--nw', dest='num_workers',
                         help='number of workers to load training data',
                         default=8, type=int)
@@ -74,21 +81,19 @@ def parse_args():
                         default='default', type=str)
     parser.add_argument('--device', default=0,
                         help='Choose a gpu device 0, 1, 2 etc.')
-    parser.add_argument('--savePath', default='results')
-    parser.add_argument('--imgSize', default='1280,720')
-    
+    parser.add_argument('--savePath', default='results',
+                        help='')
+    parser.add_argument('--imgSize', default='1280,720',
+                        help='image size w,h') 
     parser.add_argument('--cleaning', dest='cleaning', 
                         default=False, type=bool,
                         help='Set true to remove small objects')
-    
     parser.add_argument('--pix_th', dest='pix_th', 
                         default=12, type=int,
-                        help='Pixel Threshold value')
-    
+                        help='Pixel Threshold value') 
     parser.add_argument('--asp_th', dest='asp_th', 
                         default=1.8, type=float,
                         help='Aspect Ratio threshold')
-
     args = parser.parse_args()
     return args
 
@@ -160,31 +165,26 @@ def nan_hook(self, inp, output):
                                        "where:", 
                                        out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
 
-def train():
-    
-    # define the hyper parameters first
-    args = parse_args()
+def train(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = f'{args.device}'
     args.lr = cfg.lr
     # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
-    # args.batch_size = args.batch_size
-    # args.data_limit = 80
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
-    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2_least_loss_waymo.pth') #cHANGE
 
     print('Called with args:')
     print(args)
     
     if args.dataset == 'custom':
+        args.scaleCrop = True
         data_dict = check_dataset(args.data)
         train_path, val_path, val_dir = data_dict['train'], data_dict['val'], data_dict['val_dir']
         nc = int(data_dict['nc'])  # number of classes
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
-        train_dataset = Custom_yolo_dataset(train_path, cleaning=args.cleaning, pix_th=args.pix_th, asp_th=args.asp_th)
+        print(f'loading training data from {Fore.GREEN}{Style.BRIGHT}{train_path}....')
+        train_dataset = Custom_yolo_dataset(train_path, cleaning=args.cleaning, pix_th=args.pix_th, asp_th=args.asp_th, scale_Crop=args.scaleCrop)
+        # train_dataset = pipes.InMemoryCacheHolder(_train_dataset,size=2048).sharding_filter()
         args.val_dir = val_dir
         _nc = nc
     else:    
@@ -196,20 +196,21 @@ def train():
     
     _output_dir = os.path.join(os.getcwd(), args.output_dir)
     if not os.path.exists(_output_dir):
+        print(f'making: {Fore.GREEN}{_output_dir}')
         os.makedirs(_output_dir)
 
     
     if not args.data_limit==0:
         train_dataset = torch.utils.data.Subset(train_dataset, range(0, args.data_limit))
-    print('dataset loaded.')
+    print(f'{Style.BRIGHT}dataset loaded....')
 
-    print('Training Dataset: {}'.format(len(train_dataset)))
+    print(f'{Fore.GREEN}{Style.BRIGHT}Training Dataset: {len(train_dataset)}')
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,    #args.batch_size
                                   shuffle=True, num_workers=args.num_workers,      # args.num_workers
                                   collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
-    print('initialize the model')
+    print(f'initialize the model....')
     tic = time.time()
     try:
         nc
@@ -225,11 +226,14 @@ def train():
     #     submodule.register_forward_hook(nan_hook)
 
     if args.resume:
+        print(f'Loading the pre-trained checkpoint from {Fore.GREEN}{Style.BRIGHT}{args.weights}....')
         # pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         pre_trained_checkpoint = torch.load(args.weights,map_location='cpu') #---CHANGE
         # model.load_state_dict(pre_trained_checkpoint['model'])
         _model = pre_trained_checkpoint['model']
         if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
+            print(f'Last layer of pretrain checkpoint is different')
+            print(f'Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
             pre_trained_checkpoint = util(_model)    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
         # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
         
@@ -240,7 +244,7 @@ def train():
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,90,150,170], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,20,60,120,150], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -302,14 +306,17 @@ def train():
             box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True, im_info=im_info)
 
             # Compute the total loss
-            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean()
-
+            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean() 
+            
             # Clear gradients
             optimizer.zero_grad()
             # Compute gradients
             # loss.retain_grad()
             # loss.backward(retain_graph=True)
             loss.backward()
+
+            # Gradient clipping to prevent nans
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 10., norm_type=2)
 
             optimizer.step()
 
@@ -371,17 +378,16 @@ def train():
                 'map': map
                 }, save_name_best)
 
-    print(f'\n\t---------------------Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
-    print('Validating after Training...')
-    map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+    print(f'\n\t---------------------{Style.BRIGHT}Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
+    if save_name_best:
+        print(f'{Style.BRIGHT}Validating after Training...')
+        print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
+        checkpoint = torch.load(save_name_best,map_location='cpu')
+        model.load_state_dict(checkpoint['model'])
+        map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+
+
 if __name__ == '__main__':
-    train()
-
-
-
-
-
-
-
-
-
+    # define the hyper parameters first
+    args = parse_args()
+    train(args)

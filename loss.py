@@ -13,6 +13,7 @@ from config import config as cfg
 from util.bbox import generate_all_anchors, xywh2xxyy, box_transform_inv, box_ious, xxyy2xywh, box_transform
 import torch.nn.functional as F
 
+torch.manual_seed(0)
 
 def build_target(output, gt_data, H, W):
     """

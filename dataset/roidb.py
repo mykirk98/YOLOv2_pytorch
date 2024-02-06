@@ -10,18 +10,19 @@ from PIL import Image
 import numpy as np
 from torch.utils.data import Dataset
 from config import config as cfg
-from util.augmentation import augment_img
+from util.augmentation import augment_img, scaleAndcrop
 import os
 import pdb
 
 
 class Custom_yolo_dataset(Dataset):
-    def __init__(self, data, train=True, cleaning = False, pix_th = 12, asp_th = 1.8):
-        self.train = train
-        self.cleaning = cleaning
-        self.pixel_threshold = pix_th
-        self.aspect_ratio_threshold = asp_th
-        self.images = self._load_data(data)
+    def __init__(self, data, train=True, scale_Crop=False, cleaning=False, pix_th=12, asp_th=1.8):
+        self.train                  =  train
+        self.cleaning               =  cleaning
+        self.pixel_threshold        =  pix_th
+        self.aspect_ratio_threshold =  asp_th
+        self.images                 =  self._load_data(data)
+        self.scale_Crop             =  scale_Crop
         # print('done')
 
     def CHECK_LABEL(self, img_path, box, pixel_threshold, aspect_ratio_threshold ):
@@ -87,15 +88,14 @@ class Custom_yolo_dataset(Dataset):
         # if (os.path.isfile(label_path) == True):
             # print('Printing current label path------','\n', f'{i}: ', label_path)   
         with open(label_path, 'r') as f:
-            im = Image.open(im_path)
-            w, h = im.size
+            im    = Image.open(im_path)
+            w, h  = im.size
             boxes = []
             gt_classes = []
             # image = im
             for line in f:
                 label = line.split(None,1)
                 _box = label[1].split()
-
                 if self.train and self.cleaning: 
                     box_cleaned = self.CHECK_LABEL(im_path, _box, self.pixel_threshold, self.aspect_ratio_threshold) #checking each box
                     if box_cleaned:
@@ -131,10 +131,8 @@ class Custom_yolo_dataset(Dataset):
         # w, h
         im_info = torch.FloatTensor([im_data.size[0], im_data.size[1]])
         if self.train:
-            # print('Trace here----//')
-            # pdb.set_trace()
-
-            im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes)
+            
+            im_data, boxes, gt_classes = augment_img(im_data, boxes, gt_classes, self.scale_Crop)
 
             w, h = im_data.size[0], im_data.size[1]
 
@@ -147,8 +145,8 @@ class Custom_yolo_dataset(Dataset):
             #     cv2.destroyAllWindows()
 
             if np.any(boxes):
-                boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.001, 0.999)
-                boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.001, 0.999)
+                boxes[:, 0::2] = np.clip(boxes[:, 0::2] / w, 0.0001, 0.9999)
+                boxes[:, 1::2] = np.clip(boxes[:, 1::2] / h, 0.0001, 0.9999)
 
             # resize image
             input_h, input_w = cfg.input_size
@@ -250,14 +248,25 @@ def detection_collate(batch):
     # individual list
     bsize = len(batch)
     im_data, boxes, gt_classes, num_obj, im_info = zip(*batch)
-    max_num_obj = max([x.item() for x in num_obj])
-    padded_boxes = torch.zeros((bsize, max_num_obj, 4))
+    # check for None entries and remove them
+    im_data     =  tuple(xi for xi in im_data    if xi is not None)
+    boxes       =  tuple(xi for xi in boxes      if xi is not None)
+    gt_classes  =  tuple(xi for xi in gt_classes if xi is not None)
+    num_obj     =  tuple(xi for xi in num_obj    if xi is not None)
+    im_info     =  tuple(xi for xi in im_info    if xi is not None)
+    
+    cur_bsize   =  len(im_data)
+    if cur_bsize != bsize:
+        bsize = cur_bsize
+    
+    max_num_obj    = max([x.item() for x in num_obj])
+    padded_boxes   = torch.zeros((bsize, max_num_obj, 4))
     padded_classes = torch.zeros((bsize, max_num_obj,))
 
     for i in range(bsize):
-        if boxes[i].size()[0] > 0:
+        if len(boxes[i]) > 0:
             padded_boxes[i, :num_obj[i], :] = boxes[i]
-            padded_classes[i, :num_obj[i]] = gt_classes[i]
+            padded_classes[i, :num_obj[i]]  = gt_classes[i]
         else:
             pass    
 

@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 from config import config as cfg
 import pdb
-
+import random
 
 def random_scale_translation(img, boxes, jitter=0.2):
     """
@@ -36,6 +36,7 @@ def random_scale_translation(img, boxes, jitter=0.2):
     cropped = img.crop((pl, pt, pl + sw - 1, pt + sh - 1))
 
     # update boxes accordingly
+    # print(boxes.shape)
     boxes[:, 0::2] -= pl
     boxes[:, 1::2] -= pt
 
@@ -166,8 +167,50 @@ def random_exposure(img, rate=1.5):
 
     return img
 
+def scaleAndcrop(img, boxes, classes, sf=2):
+    w, h = img.size
+    boxes[:,0::2] /= w
+    boxes[:,1::2] /= h
+    img_scaled = img.resize((int(w*sf),int(h*sf)))
+    w, h = img_scaled.size
+    boxes[:,0::2] *= w
+    boxes[:,1::2] *= h
 
-def augment_img(img, boxes, gt_classes):
+    x1 = int(0.20*w)
+    x2 = int(0.80*w)
+    y1 = int(0.25*h)
+    y2 = int(0.85*h)
+    img_cropped = img_scaled.crop((x1, y1, x2, y2))
+    w_, h_ = img_cropped.size
+
+    boxes[:,0::2] -= x1
+    boxes[:,1::2] -= y1
+    boxes[:,0::2] =  np.clip(boxes[:,0::2], 0, w_-1)
+    boxes[:,1::2] =  np.clip(boxes[:,1::2], 0, h_-1)
+
+    keep     = (boxes[:, 0] != boxes[:, 2]) & (boxes[:, 1] != boxes[:, 3])
+    boxes   = boxes[keep, :]
+    classes = classes[keep]
+    keep =  ((boxes[:, 2] - boxes[:, 0]) > 7) & ((boxes[:, 3] - boxes[:, 1])>7)
+    boxes   = boxes[keep, :]
+    classes = classes[keep]
+
+    # img_ = np.array(img_cropped)
+    # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
+    # for i in range(boxes.shape[0]):
+    #     label = boxes[i]
+    #     x =  label[0]
+    #     y =  label[1]
+    #     p =  label[2]
+    #     q =  label[3]
+    #     cv2.rectangle(img_, (int(x),int(y)), (int(p),int(q)), (0,0,255), 2)
+    # cv2.imshow('', img_)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
+
+    return img_cropped, boxes, classes
+
+def augment_img(img, boxes, gt_classes, scaleCrop=False):
     """
     Apply data augmentation.
     1. convert color to HSV
@@ -197,6 +240,12 @@ def augment_img(img, boxes, gt_classes):
     # cv2.destroyAllWindows()
     
     boxes = np.copy(boxes).astype(np.float32)
+    if random.choice([True,False]) & scaleCrop:
+        img_t, boxes_t, gt_classes_t = scaleAndcrop(img, boxes, gt_classes)
+        if boxes_t.shape[0] > 0:
+            img = img_t
+            boxes = boxes_t
+            gt_classes = gt_classes_t
 
     for i in range(5):
         img_t, boxes_t = random_scale_translation(img.copy(), boxes.copy(), jitter=cfg.jitter)
@@ -212,6 +261,19 @@ def augment_img(img, boxes, gt_classes):
             break
 
     img = random_distort(img, cfg.hue, cfg.saturation, cfg.exposure)
+    
+    # img_ = np.array(img)
+    # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
+    # for i in range(boxes.shape[0]):
+    #     label = boxes[i]
+    #     x =  label[0]
+    #     y =  label[1]
+    #     p =  label[2]
+    #     q =  label[3]
+    #     cv2.rectangle(img_, (int(x),int(y)), (int(p),int(q)), (0,0,255), 2)
+    # cv2.imshow('', img_)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
     return img, boxes, gt_classes
 
 
