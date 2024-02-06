@@ -14,7 +14,7 @@ from util.data_util import check_dataset
 from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import torchdata.datapipes.iter as pipes
+# import torchdata.datapipes.iter as pipes
 from dataset.factory import get_imdb
 from dataset.roidb import RoiDataset, detection_collate, Custom_yolo_dataset
 from yolov2_tiny_2 import Yolov2
@@ -51,7 +51,7 @@ def parse_args():
                         default=0, type=int)
     parser.add_argument('--dataset', dest='dataset',
                         default='voc0712trainval', type=str)
-    parser.add_argument('--data', type=str,
+    parser.add_argument('--data', type=str, dest='data',
                         default=None, help='Give the path of custom data .yaml file' )
     parser.add_argument('--nw', dest='num_workers',
                         help='number of workers to load training data',
@@ -70,13 +70,13 @@ def parse_args():
                         default=True, type=bool)
     parser.add_argument('--resume', dest='resume',
                         default=False, type=bool)
-    parser.add_argument('--weights', default='',
+    parser.add_argument('--weights', default='', dest='weights',
                         help='provide the path of weight file (.pth) if resume')
     parser.add_argument('--checkpoint_epoch', dest='checkpoint_epoch',
                         default=100, type=int)
     parser.add_argument('--exp_name', dest='exp_name',
                         default='default', type=str)
-    parser.add_argument('--device', default=0,
+    parser.add_argument('--device', default=0, dest='device',
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
     parser.add_argument('--imgSize', default='1280,720')
@@ -152,12 +152,20 @@ def nan_hook(self, inp, output):
                                        "where:", 
                                        out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
 
-def train(args):
+def train():
+    
+    # define the hyper parameters first
+    args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = f'{args.device}'
     args.lr = cfg.lr
     # args.decay_lrs = cfg.decay_lrs
     args.weight_decay = cfg.weight_decay
     args.momentum = cfg.momentum
+    # args.batch_size = args.batch_size
+    # args.data_limit = 80
+    # args.pretrained_model = os.path.join('data', 'pretrained', 'darknet19_448.weights')
+    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2-tiny-voc.pth') #cHANGE
+    # args.pretrained_model = os.path.join('data', 'pretrained', 'yolov2_least_loss_waymo.pth') #cHANGE
 
     print('Called with args:')
     print(args)
@@ -174,7 +182,7 @@ def train(args):
         # train_dataset = pipes.InMemoryCacheHolder(_train_dataset,size=2048).sharding_filter()
         args.val_dir = val_dir
         _nc = nc
-    else:    
+    else:
         args.imdb_name, args.imdbval_name = get_dataset_names(args.dataset)
         _nc = 20
         # load dataset
@@ -183,7 +191,6 @@ def train(args):
     
     _output_dir = os.path.join(os.getcwd(), args.output_dir)
     if not os.path.exists(_output_dir):
-        print(f'making: {Fore.GREEN}{_output_dir}')
         os.makedirs(_output_dir)
 
     
@@ -197,7 +204,7 @@ def train(args):
                                   collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
-    print(f'initialize the model....')
+    print(f'{Style.BRIGHT}initialize the model....')
     tic = time.time()
     try:
         nc
@@ -212,15 +219,15 @@ def train(args):
     # for submodule in model.modules():
     #     submodule.register_forward_hook(nan_hook)
 
-    if args.resume:
+    if args.resume:     # False
         print(f'Loading the pre-trained checkpoint from {Fore.GREEN}{Style.BRIGHT}{args.weights}....')
         # pre_trained_checkpoint = torch.load(args.pretrained_model,map_location='cpu') #---CHANGE
         pre_trained_checkpoint = torch.load(args.weights,map_location='cpu') #---CHANGE
         # model.load_state_dict(pre_trained_checkpoint['model'])
         _model = pre_trained_checkpoint['model']
         if _model['conv9.0.weight'].shape[0] != (5+_nc)*5:
-            print(f'Last layer of pretrain checkpoint is different')
-            print(f'Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
+            print(f'{Style.BRIGHT}Last layer of pretrain checkpoint is different')
+            print(f'{Style.BRIGHT}Changing the last layer of {Fore.MAGENTA}{Style.BRIGHT}{args.weights}...')
             pre_trained_checkpoint = util(_model)    # con9: torch.Size([40, 1024, 1, 1]), bias9: torch.Size([40])
         # check_point={k:v if v.size()==model[k].size()  else  model[k] for k,v in zip(enumerate(model.items()), enumerate(pre_trained_checkpoint["model"].items()))}
         
@@ -231,7 +238,7 @@ def train(args):
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,30,40,60,90,120,150], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,90,150,170], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -363,15 +370,13 @@ def train(args):
                 }, save_name_best)
 
     print(f'\n\t---------------------{Style.BRIGHT}Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
-    if save_name_best:
-        print(f'{Style.BRIGHT}Validating after Training...')
-        print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
-        checkpoint = torch.load(save_name_best,map_location='cpu')
-        model.load_state_dict(checkpoint['model'])
-        map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+    print(f'{Style.BRIGHT}Validating after Training...')
+    print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
+    checkpoint = torch.load(save_name_best,map_location='cpu')
+    model.load_state_dict(checkpoint['model'])
+    map, _ = test_for_train(_output_dir, model, args, val_path, names, True)
+
 
 
 if __name__ == '__main__':
-    # define the hyper parameters first
-    args = parse_args()
-    train(args)
+    train()

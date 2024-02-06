@@ -6,20 +6,20 @@
 # └── datasets
 #     └── coco  ← downloads here
 
-path: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd
+path: /home/gpuadmin/ZPD/Bdd_uncleaned/3class_bdd/
 
 # train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
 # val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/yolo_test_waymo.txt
 # train: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/cleaned_waymo/train.txt
-train: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/train5k.txt
+train: /home/gpuadmin/ZPD/Bdd_uncleaned/3class_bdd/train20k.txt
 # val: /home/zafar/old_pc/data_sets/waymo_dataset/3class_waymo/cleaned_waymo/val.txt
 # val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val1k.txt
 # val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val_test/val_test.txt
-val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val5k.txt
+val: /home/gpuadmin/ZPD/Bdd_uncleaned/3class_bdd/val5k.txt
 # val: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val.txt
-test: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val5k.txt
+test: /home/gpuadmin/ZPD/Bdd_uncleaned/3class_bdd/val5k.txt
 
-val_dir: /home/zafar/old_pc/data_sets/BDD_dataset/Bdd_uncleaned/3class_bdd/val5k
+val_dir: /home/gpuadmin/ZPD/Bdd_uncleaned/3class_bdd/val5k
 
 # Classes
 nc: 3  # number of classes
