@@ -294,7 +294,7 @@ def test(args):
         #     args.conf_thresh = 0.18
         #     args.nms_thresh = 0.35
         args.scale   = True
-        val_dataset  = Custom_yolo_dataset(data=val_data, train=False)
+        val_dataset  = Custom_yolo_dataset(data=val_data, train=False, cleaning = False)
         dataset_size = len(val_dataset)
         num_classes  = nc
         # all_boxes = [[[] for _ in range(dataset_size)] for _ in range(num_classes)]
@@ -424,7 +424,7 @@ def test(args):
         args.gtCoordinates      =     'rel'
         args.detCoordinates     =     'rel'
         args.imgSize            =     '1280,720'   # for bdd --> 1280, 720 and waymo --> 1920, 1280
-        args.savePath           =     '/home/zafar/yolov2_pytorch/output/plots'
+        args.savePath           =     'output/plots'
         args.call_with_train    =     True
         args.showPlot           =     False
         args.names              =     names
@@ -460,7 +460,7 @@ def test_for_train(temp_path, model,
         args.nms_thresh = 0.45
         args.thres = 0.2
         args.scale = True
-        val_dataset = Custom_yolo_dataset(data=val_data, train=False)
+        val_dataset = Custom_yolo_dataset(data=val_data, train=False, cleaning=False)
         dataset_size = len(val_dataset)
         num_classes = len(classes)
         # all_boxes = [[[] for _ in range(dataset_size)] for _ in range(num_classes)]

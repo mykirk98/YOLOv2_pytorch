@@ -21,7 +21,7 @@ from yolov2_tiny_2 import Yolov2
 from torch import optim
 from torch.optim import lr_scheduler
 from util.network import adjust_learning_rate
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from config import config as cfg
 from Test_with_train import test_for_train
 from weight_update import *
@@ -75,7 +75,19 @@ def parse_args():
     parser.add_argument('--device', default=0,
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
-    parser.add_argument('--imgSize', default='720,1280')
+    parser.add_argument('--imgSize', default='1280,720')
+    
+    parser.add_argument('--cleaning', dest='cleaning', 
+                        default=False, type=bool,
+                        help='Set true to remove small objects')
+    
+    parser.add_argument('--pix_th', dest='pix_th', 
+                        default=12, type=int,
+                        help='Pixel Threshold value')
+    
+    parser.add_argument('--asp_th', dest='asp_th', 
+                        default=1.8, type=float,
+                        help='Aspect Ratio threshold')
 
     args = parser.parse_args()
     return args
@@ -172,7 +184,7 @@ def train():
         nc = int(data_dict['nc'])  # number of classes
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
-        train_dataset = Custom_yolo_dataset(train_path)
+        train_dataset = Custom_yolo_dataset(train_path, cleaning=args.cleaning, pix_th=args.pix_th, asp_th=args.asp_th)
         args.val_dir = val_dir
         _nc = nc
     else:    
