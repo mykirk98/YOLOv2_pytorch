@@ -98,7 +98,7 @@ def prepare_im_data(img):
 
     return im_data, im_info
 
-def appendLists(a=[],b=[], im_info={}, thres=0.25):
+def appendLists(a=[],b=[], im_info={}, thres=0.25, selfT=False):
     w = im_info['width'].item()
     h = im_info['height'].item()
     for i in range(len(b)):
@@ -109,13 +109,12 @@ def appendLists(a=[],b=[], im_info={}, thres=0.25):
             height = b[i][4] - b[i][2]
             x_center = (b[i][3] + b[i][1]) / 2
             y_center = (b[i][4] + b[i][2]) / 2
-            # _smal_list = f'{int(b[i][0])} {round(b[i][-1],4)} {round(b[i][1],4)} {round(b[i][2],4)} {round(b[i][3],4)} {round(b[i][4],4)} \n'
-            # _smal_list = f'{int(b[i][0])} {round(b[i][1]/w,4)} {round(b[i][2]/h,4)} {round(b[i][3]/w,4)} {round(b[i][4]/h,4)} \n'
-            # _smal_list = f'{int(b[i][0])} {round(b[i][-1],4)} {round(b[i][1],4)} {round(b[i][2],4)} {round(b[i][3],4)} {round(b[i][4],4)} \n'
-            _smal_list = f'{int(b[i][0])} {round(b[i][-1],4)} {round(x_center/w, 4)} {round(y_center/h, 4)} {round(width/w, 4)} {round(height/h, 4)} \n'
+            
+            if not selfT:
+                _smal_list = f'{int(b[i][0])} {round(b[i][-1],4)} {round(x_center/w, 4)} {round(y_center/h, 4)} {round(width/w, 4)} {round(height/h, 4)} \n'
+            else:
+                _smal_list = f'{int(b[i][0])} {round(x_center/w, 4)} {round(y_center/h, 4)} {round(width/w, 4)} {round(height/h, 4)} {round(b[i][-1],4)} \n'
             a.append(_smal_list)    
-    # if len(a)==0:
-    #     a.append('0 0 0 0 0 \n')
     return a
 
 def util(check_point):
@@ -331,7 +330,7 @@ def test(args):
                                 # cls_det[:, 1] = detections[inds, 4] * detections[inds, 5]
                                 # showImg(im_data[i], cls_det, im_info, False)
                                 _det1Class = cls_det.tolist()         # per class detections tensor of (N,6) [cls conf x y w h]
-                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info, args.thres)
+                                _detAllclass = appendLists(_detAllclass, _det1Class, im_info, args.thres, args.self_training)
                         if not os.path.exists(f'{save_dir}/labels'):
                             os.mkdir(f'{save_dir}/labels')
                         with open(f'{save_dir}/labels/{name}', 'w') as f:
@@ -363,6 +362,7 @@ def test(args):
         return map, class_metrics   
     else:
         print(f'{Fore.GREEN} Detections saved in the designated folder for pseudo-label generation')
+        return None, None
 
 def test_for_train(temp_path, model, 
                    args, val_data=None, 
