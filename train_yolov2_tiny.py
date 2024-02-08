@@ -22,7 +22,7 @@ from yolov2_tiny_2 import Yolov2
 from torch import optim
 from torch.optim import lr_scheduler
 from util.network import adjust_learning_rate
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from config import config as cfg
 from Test_with_train import test_for_train
 from weight_update import *
@@ -33,6 +33,9 @@ import colorama
 from colorama import Fore, Back, Style
 colorama.init(autoreset=True)
 
+
+torch.manual_seed(0)
+np.random.seed(0)
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 def parse_args():
@@ -78,9 +81,19 @@ def parse_args():
                         default='default', type=str)
     parser.add_argument('--device', default=0, dest='device',
                         help='Choose a gpu device 0, 1, 2 etc.')
-    parser.add_argument('--savePath', default='results')
-    parser.add_argument('--imgSize', default='1280,720')
-
+    parser.add_argument('--savePath', default='results',
+                        help='')
+    parser.add_argument('--imgSize', default='1280,720',
+                        help='image size w,h') 
+    parser.add_argument('--cleaning', dest='cleaning', 
+                        default=False, type=bool,
+                        help='Set true to remove small objects')
+    parser.add_argument('--pix_th', dest='pix_th', 
+                        default=11, type=int,
+                        help='Pixel Threshold value') 
+    parser.add_argument('--asp_th', dest='asp_th', 
+                        default=1.4, type=float,
+                        help='Aspect Ratio threshold')
     args = parser.parse_args()
     return args
 
@@ -178,7 +191,11 @@ def train():
         names = data_dict['names']  # class names
         assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {args.data}'  # check
         print(f'loading training data from {Fore.GREEN}{Style.BRIGHT}{train_path}....')
-        train_dataset = Custom_yolo_dataset(train_path,scale_Crop=args.scaleCrop)
+        train_dataset = Custom_yolo_dataset(train_path,
+                                            cleaning=args.cleaning,
+                                            pix_th=args.pix_th,
+                                            asp_th=args.asp_th,
+                                            scale_Crop=args.scaleCrop)
         # train_dataset = pipes.InMemoryCacheHolder(_train_dataset,size=2048).sharding_filter()
         args.val_dir = val_dir
         _nc = nc
@@ -238,7 +255,7 @@ def train():
 
     # initialize the optimizer
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,90,150,170], gamma=0.1)
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[6,20,60,120,150], gamma=0.1)
     if args.use_cuda:
         model.cuda()
 
@@ -283,8 +300,8 @@ def train():
             # Get the next batch of training data
             # print('Loading first batch of images')
             im_data, boxes, gt_classes, num_obj, im_info = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
-            # for i in range(im_data.shape[0]):
-            #     showImg(im_data[i], boxes[i])
+            for i in range(im_data.shape[0]):
+                showImg(im_data[i], boxes[i])
 
             # Move the data tensors to the GPU
             if args.use_cuda:
@@ -300,14 +317,17 @@ def train():
             box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True, im_info=im_info)
 
             # Compute the total loss
-            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean()
-
+            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean() 
+            
             # Clear gradients
             optimizer.zero_grad()
             # Compute gradients
             # loss.retain_grad()
             # loss.backward(retain_graph=True)
             loss.backward()
+
+            # Gradient clipping to prevent nans
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 10., norm_type=2)
 
             optimizer.step()
 

@@ -167,48 +167,130 @@ def random_exposure(img, rate=1.5):
 
     return img
 
-def scaleAndcrop(img, boxes, classes, sf=2):
-    w, h = img.size
-    boxes[:,0::2] /= w
-    boxes[:,1::2] /= h
-    img_scaled = img.resize((int(w*sf),int(h*sf)))
-    w, h = img_scaled.size
-    boxes[:,0::2] *= w
-    boxes[:,1::2] *= h
+def UpSampling(image, boxes, sf=2):
+    """
+    Upsampling images & boxes by scale_factor
+    """
+    width, height = image.size
+    image = image.resize(size=(int(round(number=width*sf, ndigits=0)), int(round(number=height*sf, ndigits=0))))
+    width, height = image.size
+    boxes[:,0::2] *= width  # box[0], box[2] *= sf X width(former)
+    boxes[:,1::2] *= height # box[1], box[3] *= sf * height(former)
 
-    x1 = int(0.20*w)
-    x2 = int(0.80*w)
-    y1 = int(0.25*h)
-    y2 = int(0.85*h)
-    img_cropped = img_scaled.crop((x1, y1, x2, y2))
-    w_, h_ = img_cropped.size
+    return image, boxes, width, height
 
+def OptimumArea(boxes, bestLeft, bestTop, bestRight, bestBottom, most_width, most_height):
+    """
+    Find optimum Left, Top Right, Bottom to crop the image"""
+    for box in boxes:
+        box_width, box_height = box[2] - box[0], box[3] - box[1]
+
+        if box_width * box_height > (0.25 * most_width) * (0.25 * most_height):
+            if bestLeft > box[0]:
+                bestLeft = box[0]
+            
+            if bestTop > box[1]:
+                bestTop = box[1]
+            
+            if bestRight < box[2]:
+                bestRight = box[2]
+            
+            if bestBottom < box[3]:
+                bestBottom = box[3]
+
+    return bestLeft, bestTop, bestRight, bestBottom
+
+def Padding(image, bestLeft, bestTop, bestRight, bestBottom, alpha=0.05):
+    width, height = image.size
+
+    if 0 < bestLeft < alpha*width:
+        bestLeft = 0
+    else:
+        bestLeft -= alpha * width
+
+    if 0 < bestTop < alpha*height:
+        bestTop = 0
+    else:
+        bestTop -= alpha * height
+
+    if (1-alpha)*width < bestRight < width:
+        bestRight = width
+    else:
+        bestRight += alpha * width
+
+    if (1-alpha)*height < bestBottom < height:
+        bestBottom = height
+    else:
+        bestBottom += alpha * height
+
+    return bestLeft, bestTop, bestRight, bestBottom
+
+def AdjustBBOX(boxes, x1, y1, image):
+    """
+    move (x1,y1) to (0, 0) and this will be the basis\n
+    And then move all boxes based on basis
+    """
+    width, height = image.size
     boxes[:,0::2] -= x1
     boxes[:,1::2] -= y1
-    boxes[:,0::2] =  np.clip(boxes[:,0::2], 0, w_-1)
-    boxes[:,1::2] =  np.clip(boxes[:,1::2], 0, h_-1)
+    boxes[:,0::2] = np.clip(boxes[:,0::2], 0, width-1)
+    boxes[:,1::2] = np.clip(boxes[:,1::2], 0, height-1)
 
+    return boxes
+
+def Normalization(boxes, image):
+    width, height = image.size
+    boxes[:,0::2] /= width  # box[0], box[2] /= width
+    boxes[:,1::2] /= height # box[1], box[3] /= height
+
+    return boxes
+
+def scaleAndcrop(image, boxes, classes):
+    boxes = Normalization(boxes, image)
+    mostLeft, mostTop, mostRight, mostBottom = 1, 1, 0, 0
+    for box in boxes:
+        mostLeft, mostTop, mostRight, mostBottom = min(box[0], mostLeft), min(box[1], mostTop), max(box[2], mostRight), max(box[3], mostBottom)
+
+    # Upsampling image, boxes
+    image, boxes, width, height = UpSampling(image=image, boxes=boxes, sf=2)
+    # Upsampling mostLeft, mostRight, mostTop, mostBottom
+    mostLeft, mostRight, mostTop, mostBottom = int(round(number=mostLeft*width, ndigits=0)), int(round(number=mostRight*width, ndigits=0)), int(round(number=mostTop*height, ndigits=0)), int(round(number=mostBottom*height, ndigits=0))
+
+    # Find the optimum cropping area
+    bestLeft, bestTop, bestRight, bestBottom = np.average(a=boxes, axis=0)
+    most_width, most_height = mostRight - mostLeft, mostBottom - mostTop
+    bestLeft, bestTop, bestRight, bestBottom = OptimumArea(boxes=boxes, bestLeft=bestLeft, bestTop=bestTop, bestRight=bestRight, bestBottom=bestBottom, most_width=most_width, most_height=most_height)
+    # Padding
+    bestLeft, bestTop, bestRight, bestBottom = Padding(image=image, bestLeft=bestLeft, bestTop=bestTop, bestRight=bestRight, bestBottom=bestBottom)
+
+    # cropping by best Left, Top, Right, Bottom
+    image = image.crop(box=(bestLeft, bestTop, bestRight, bestBottom))
+    width, height = image.size
+    # Adjust the bounding box coordinate
+    boxes = AdjustBBOX(boxes=boxes, x1=bestLeft, y1=bestTop, image=image)
+
+    # keep the box that is not width == 0 | height == 0
     keep     = (boxes[:, 0] != boxes[:, 2]) & (boxes[:, 1] != boxes[:, 3])
     boxes   = boxes[keep, :]
     classes = classes[keep]
+
+    # keep the box that width > 7 & height > 7
     keep =  ((boxes[:, 2] - boxes[:, 0]) > 7) & ((boxes[:, 3] - boxes[:, 1])>7)
     boxes   = boxes[keep, :]
     classes = classes[keep]
 
-    # img_ = np.array(img_cropped)
-    # img_ = cv2.cvtColor(img_, cv2.COLOR_RGB2BGR)
+########################################################################################################################
+    # image__ = np.array(image)
+    # image__ = cv2.cvtColor(image__, cv2.COLOR_RGB2BGR)
     # for i in range(boxes.shape[0]):
     #     label = boxes[i]
-    #     x =  label[0]
-    #     y =  label[1]
-    #     p =  label[2]
-    #     q =  label[3]
-    #     cv2.rectangle(img_, (int(x),int(y)), (int(p),int(q)), (0,0,255), 2)
-    # cv2.imshow('', img_)
-    # cv2.waitKey()
+    #     x1, y1, x2, y2 =  label[0], label[1], label[2], label[3]
+    #     cv2.rectangle(img=image__, pt1=(int(x1),int(y1)), pt2=(int(x2),int(y2)), color=(0, 255, 0), thickness=2)
+    # cv2.imshow(winname='image & boxes', mat=image__)
+    # cv2.waitKey(delay=0)
     # cv2.destroyAllWindows()
 
-    return img_cropped, boxes, classes
+    return image, boxes, classes
 
 def augment_img(img, boxes, gt_classes, scaleCrop=False):
     """
@@ -275,11 +357,3 @@ def augment_img(img, boxes, gt_classes, scaleCrop=False):
     # cv2.waitKey()
     # cv2.destroyAllWindows()
     return img, boxes, gt_classes
-
-
-
-
-
-
-
-
