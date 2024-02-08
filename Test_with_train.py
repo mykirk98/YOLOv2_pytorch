@@ -66,7 +66,7 @@ def parse_args():
                         help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
     parser.add_argument('--imgSize', default='1280,720')
-    parser.add_argument('--self_training', default=False)
+    parser.add_argument('--self_training', default=True)
 
     args = parser.parse_args()
     return args
