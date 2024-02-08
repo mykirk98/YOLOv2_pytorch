@@ -16,11 +16,12 @@ import pdb
 
 
 class Custom_yolo_dataset(Dataset):
-    def __init__(self, data, train=True, scale_Crop=False, cleaning=False, pix_th=12, asp_th=1.8):
+    def __init__(self, data, train=True, scale_Crop=False, cleaning=False, pix_th=12, asp_th=1.8, selfT=False):
         self.train                  =  train
         self.cleaning               =  cleaning
         self.pixel_threshold        =  pix_th
         self.aspect_ratio_threshold =  asp_th
+        self.selfT                  =  selfT
         self.images                 =  self._load_data(data)
         self.scale_Crop             =  scale_Crop
         # print('done')
@@ -47,27 +48,30 @@ class Custom_yolo_dataset(Dataset):
         images_dropped = []
         with open(file, 'r') as f: # opening train.txt file
             for line in f:
-                label = line.split('.')[0] + '.txt'
-                if os.path.isfile(label):
-                    with open(label, 'r') as f1:
-                        try:
-                            x = f1.readlines()
+                if not self.selfT:
+                    label = line.split('.')[0] + '.txt'
+                    if os.path.isfile(label):
+                        with open(label, 'r') as f1:
+                            try:
+                                x = f1.readlines()
+                        
+                                if self.train and self.cleaning:
+                                    boxes_remaining = 0
+                                    for lines in x:
+                                        label = lines.split(None,1)
+                                        _box  = label[1].split()
+                                        box   = self.CHECK_LABEL(line, _box, self.pixel_threshold,  self.aspect_ratio_threshold) #checking each box
+                                        if box:boxes_remaining+=1
+                                    
+                                    if boxes_remaining>0:images.append(line.split()[0])
+                                    else:images_dropped.append(line.split()[0])   
+                                else:
+                                    if len(x):images.append(line.split()[0])
+                            except:
+                                NotImplementedError      
+                else:
+                    images.append(line.split()[0])
                     
-                            if self.train and self.cleaning:
-                                boxes_remaining = 0
-                                for lines in x:
-                                    label = lines.split(None,1)
-                                    _box  = label[1].split()
-                                    box   = self.CHECK_LABEL(line, _box, self.pixel_threshold,  self.aspect_ratio_threshold) #checking each box
-                                    if box:boxes_remaining+=1
-                                
-                                if boxes_remaining>0:images.append(line.split()[0])
-                                else:images_dropped.append(line.split()[0])   
-                            else:
-                                if len(x):images.append(line.split()[0])
-                        except:
-                            NotImplementedError      
-        
         if images_dropped:print(f"\n ********** {len(images_dropped)} image(s) DROPPED because no labels were left after cleaning ********** \n")
         
         return images
@@ -84,48 +88,52 @@ class Custom_yolo_dataset(Dataset):
     
     def nroi_at(self,i):
         im_path = self.images[i]
-        label_path = im_path.split('.')[0] + '.txt'     # implement no label cases (no file or empty label file)
-        
-        # if (os.path.isfile(label_path) == True):
-            # print('Printing current label path------','\n', f'{i}: ', label_path)   
-        with open(label_path, 'r') as f:
-            im    = Image.open(im_path)
-            w, h  = im.size
-            boxes = []
-            gt_classes = []
-            # image = im
-            for line in f:
-                label = line.split(None,1)
-                _box = label[1].split()
-                if self.train and self.cleaning: 
-                    box_cleaned = self.CHECK_LABEL(im_path, _box, self.pixel_threshold, self.aspect_ratio_threshold) #checking each box
-                    if box_cleaned:
+        if not self.selfT:
+            label_path = im_path.split('.')[0] + '.txt'     # implement no label cases (no file or empty label file)
+            
+            # if (os.path.isfile(label_path) == True):
+                # print('Printing current label path------','\n', f'{i}: ', label_path)   
+            with open(label_path, 'r') as f:
+                im    = Image.open(im_path)
+                w, h  = im.size
+                boxes = []
+                gt_classes = []
+                # image = im
+                for line in f:
+                    label = line.split(None,1)
+                    _box = label[1].split()
+                    if self.train and self.cleaning: 
+                        box_cleaned = self.CHECK_LABEL(im_path, _box, self.pixel_threshold, self.aspect_ratio_threshold) #checking each box
+                        if box_cleaned:
+                            gt_classes.append(int(label[0]))
+                            box = self.xywh2xyxy(box_cleaned, w, h)
+                            boxes.append(box)  
+                        
+                        # else:print("Box removed due to cleaning")
+                        
+                    # if self.train:
+                    #     box_cleaned = CHECK_LABEL(im_path, _box, 12, 1.8)
+                    #     # if args.cleaning: ##checking condition to perform cleaning or not
+                    # #     box_cleaned = check_labels(pixel_threshold, aspect_ratio_threshold)
+                    else:
                         gt_classes.append(int(label[0]))
-                        box = self.xywh2xyxy(box_cleaned, w, h)
-                        boxes.append(box)  
-                    
-                    # else:print("Box removed due to cleaning")
-                       
-                # if self.train:
-                #     box_cleaned = CHECK_LABEL(im_path, _box, 12, 1.8)
-                #     # if args.cleaning: ##checking condition to perform cleaning or not
-                # #     box_cleaned = check_labels(pixel_threshold, aspect_ratio_threshold)
-                else:
-                    gt_classes.append(int(label[0]))
-                    box = self.xywh2xyxy(_box, w, h)
-                    # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-                    # cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
-                    # cv2.imshow('', image)
-                    # cv2.waitKey()
-                    # cv2.destroyAllWindows()
-                    # if any(x>1 for x in box) or any(x<0 for x in box):
-                    #     print('---//----Extra ordinary value found in current label-------')
-                    #     print('---//----Extra ordinary box: ', box)
-                    #     print('---//----Path of file containing extra ordinary box: ', label_path)
-                    boxes.append(box)
-            # print('Printing boxes list for current label file-----', '\n', boxes)
-            # print('Printing number of labels in current file-----', '\n', len(boxes))
-        return im, np.array(boxes), np.array(gt_classes)
+                        box = self.xywh2xyxy(_box, w, h)
+                        # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                        # cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 1)
+                        # cv2.imshow('', image)
+                        # cv2.waitKey()
+                        # cv2.destroyAllWindows()
+                        # if any(x>1 for x in box) or any(x<0 for x in box):
+                        #     print('---//----Extra ordinary value found in current label-------')
+                        #     print('---//----Extra ordinary box: ', box)
+                        #     print('---//----Path of file containing extra ordinary box: ', label_path)
+                        boxes.append(box)
+                # print('Printing boxes list for current label file-----', '\n', boxes)
+                # print('Printing number of labels in current file-----', '\n', len(boxes))
+            return im, np.array(boxes), np.array(gt_classes)
+        else:
+            im    = Image.open(im_path)
+            return im, None, None
     
     def __getitem__(self, i):
         im_data, boxes, gt_classes = self.nroi_at(i)
