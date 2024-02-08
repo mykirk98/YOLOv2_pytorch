@@ -300,8 +300,8 @@ def train():
             # Get the next batch of training data
             # print('Loading first batch of images')
             im_data, boxes, gt_classes, num_obj, im_info = next(train_data_iter)     #boxes=[b, 4,4] ([x1,x2,y1,y2]) padded with zeros
-            for i in range(im_data.shape[0]):
-                showImg(im_data[i], boxes[i])
+            # for i in range(im_data.shape[0]):
+            #     showImg(im_data[i], boxes[i])
 
             # Move the data tensors to the GPU
             if args.use_cuda:
