@@ -43,57 +43,29 @@ def parse_args():
     Parse input arguments
     """
     parser = argparse.ArgumentParser(description='Yolo v2')
-    parser.add_argument('--max_epochs', dest='max_epochs',
-                        help='number of epochs to train',
-                        default=100, type=int)
-    parser.add_argument('--start_epoch', dest='start_epoch',
-                        default=1, type=int)
-    parser.add_argument('--batch_size', dest='batch_size',
-                        default=64, type=int)
-    parser.add_argument('--data_limit', dest='data_limit',
-                        default=0, type=int)
-    parser.add_argument('--dataset', dest='dataset',
-                        default='voc0712trainval', type=str)
-    parser.add_argument('--data', type=str, dest='data',
-                        default=None, help='Give the path of custom data .yaml file' )
-    parser.add_argument('--nw', dest='num_workers',
-                        help='number of workers to load training data',
-                        default=8, type=int)
-    parser.add_argument('--output_dir', dest='output_dir',
-                        default='output', type=str)
-    parser.add_argument('--use_tfboard', dest='use_tfboard',
-                        default=False, type=bool)
-    parser.add_argument('--display_interval', dest='display_interval', 
-                        default=20, type=int)
-    parser.add_argument('--mGPUs', dest='mGPUs',
-                        default=False, type=bool)
-    parser.add_argument('--save_interval', dest='save_interval',
-                        default=10, type=int)
-    parser.add_argument('--cuda', dest='use_cuda',
-                        default=True, type=bool)
-    parser.add_argument('--resume', dest='resume',
-                        default=False, type=bool)
-    parser.add_argument('--weights', default='', dest='weights',
-                        help='provide the path of weight file (.pth) if resume')
-    parser.add_argument('--checkpoint_epoch', dest='checkpoint_epoch',
-                        default=100, type=int)
-    parser.add_argument('--exp_name', dest='exp_name',
-                        default='default', type=str)
-    parser.add_argument('--device', default=0, dest='device',
-                        help='Choose a gpu device 0, 1, 2 etc.')
-    parser.add_argument('--savePath', default='results',
-                        help='')
-    parser.add_argument('--imgSize', default='1280,720',
-                        help='image size w,h') 
-    parser.add_argument('--cleaning', dest='cleaning', 
-                        default=False, type=bool,
-                        help='Set true to remove small objects')
-    parser.add_argument('--pix_th', dest='pix_th', 
-                        default=11, type=int,
-                        help='Pixel Threshold value')
-    parser.add_argument('--asp_th', dest='asp_th', 
-                        default=1.4, type=float,
-                        help='Aspect Ratio threshold')
+    parser.add_argument('--max_epochs', dest='max_epochs', help='number of epochs to train', default=100, type=int)
+    parser.add_argument('--start_epoch', dest='start_epoch', default=1, type=int)
+    parser.add_argument('--batch_size', dest='batch_size', default=64, type=int)
+    parser.add_argument('--data_limit', dest='data_limit', default=0, type=int)
+    parser.add_argument('--dataset', dest='dataset', default='voc0712trainval', type=str)
+    parser.add_argument('--data', type=str, dest='data', default=None, help='Give the path of custom data .yaml file')
+    parser.add_argument('--nw', dest='num_workers', help='number of workers to load training data', default=8, type=int)
+    parser.add_argument('--output_dir', dest='output_dir', default='output', type=str)
+    parser.add_argument('--use_tfboard', dest='use_tfboard', default=False, type=bool)
+    parser.add_argument('--display_interval', dest='display_interval', default=20, type=int)
+    parser.add_argument('--mGPUs', dest='mGPUs', default=False, type=bool)
+    parser.add_argument('--save_interval', dest='save_interval', default=10, type=int)
+    parser.add_argument('--cuda', dest='use_cuda', default=True, type=bool)
+    parser.add_argument('--resume', dest='resume', default=False, type=bool)
+    parser.add_argument('--weights', default='', dest='weights', help='provide the path of weight file (.pth) if resume')
+    parser.add_argument('--checkpoint_epoch', dest='checkpoint_epoch', default=100, type=int)
+    parser.add_argument('--exp_name', dest='exp_name', default='default', type=str)
+    parser.add_argument('--device', default=0, dest='device', help='Choose a gpu device 0, 1, 2 etc.')
+    parser.add_argument('--savePath', default='results', help='')
+    parser.add_argument('--imgSize', default='1280,720', help='image size w,h') 
+    parser.add_argument('--cleaning', dest='cleaning', default=False, type=bool, help='Set true to remove small objects')
+    parser.add_argument('--pix_th', dest='pix_th', default=11, type=int, help='Pixel Threshold value')
+    parser.add_argument('--asp_th', dest='asp_th', default=1.4, type=float, help='Aspect Ratio threshold')
     args = parser.parse_args()
     return args
 
@@ -216,9 +188,7 @@ def train():
     print(f'{Style.BRIGHT}dataset loaded....')
 
     print(f'{Fore.GREEN}{Style.BRIGHT}Training Dataset: {len(train_dataset)}')
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,    #args.batch_size
-                                  shuffle=True, num_workers=args.num_workers,      # args.num_workers
-                                  collate_fn=detection_collate, drop_last=True, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True, pin_memory=True)
 
     # initialize the model
     print(f'{Style.BRIGHT}initialize the model....')

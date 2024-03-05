@@ -8,13 +8,13 @@
 
 path: /home/msis/Work/yolov2-pytorch/3class_bdd/
 
-train: /home/msis/Work/yolov2-pytorch/3class_bdd/train64.txt
+train: /home/msis/Work/yolov2-pytorch/3class_bdd/train256.txt
+      
+val: /home/msis/Work/yolov2-pytorch/3class_bdd/val256.txt
 
-val: /home/msis/Work/yolov2-pytorch/3class_bdd/val64.txt
+test: /home/msis/Work/yolov2-pytorch/3class_bdd/val256.txt
 
-test: /home/msis/Work/yolov2-pytorch/3class_bdd/val64.txt
-
-val_dir: /home/msis/Work/yolov2-pytorch/3class_bdd/val64
+val_dir: /home/msis/Work/yolov2-pytorch/3class_bdd/val256
 
 # Classes
 nc: 3  # number of classes

@@ -23,8 +23,7 @@ def create_list_file(directory_path, output_file_path):
     # print(f"File paths written to {output_file_path}")
 
 # USE
-create_list_file(directory_path="/home/msis/Work/yolov2-pytorch/images/val64", output_file_path="/home/msis/Work/yolov2-pytorch/images/val64.txt")
-
+create_list_file(directory_path="/home/msis/Work/yolov2-pytorch/3class_bdd/train256", output_file_path="/home/msis/Work/yolov2-pytorch/3class_bdd/train256.txt")
 
 
 def download_image_by_txtFile(textFile, targetDirectory):
