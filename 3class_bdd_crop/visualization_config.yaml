@@ -1,0 +1,9 @@
+labelInImg_dir: 'True'
+img_path: /home/msis/Work/3class_bdd_crop/original_images/train/0af07355-56e42b91.jpg
+# label_path: ['/home/zafar/Zafar_codes/Pseudolabel_Analysis/Waymo_youtube_exp1/Yolov5m_waymo_youtube_exp-0.5',
+#               '/home/zafar/Zafar_codes/Pseudolabel_Analysis/Waymo_youtube_exp1/Yolov5m_waymo_youtube_exp-0.5-Merged-no-conf']    # Add more path is string in the list if you want to display more labels o9f the same image
+# if you only want to visualize the labels inside image directory the pass the labelInImg_dir as True and pass label_path as empty list
+label_path: []
+save_visualizations: 'False'     # True/False
+# save_dir: /home/zafar/Zafar_codes/Pseudolabel_Analysis/validation_analysis/waymo_youtube_model/pred_visualization    # set save_visualizations as 'True' and pass a directory path here if you want to save visualization results otherwise write abc
+save_dir: 

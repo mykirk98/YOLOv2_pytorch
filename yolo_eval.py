@@ -171,8 +171,8 @@ def yolo_eval(yolo_output, im_info, conf_threshold=0.6, nms_threshold=0.4, scale
     if scale is False:
         xywh2xyxy = False
     else:
-        xywh2xyxy = True    
-    deltas = yolo_output[0].cpu()       # relative values 845*4
+        xywh2xyxy = True
+    deltas = yolo_output[0].cpu()
     conf = yolo_output[1].cpu()
     classes = yolo_output[2].cpu()
 

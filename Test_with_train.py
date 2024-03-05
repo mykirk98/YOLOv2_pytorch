@@ -9,7 +9,7 @@ import torch
 from torch.autograd import Variable
 from pathlib import Path
 from PIL import Image
-from yolov2_tiny import Yolov2
+from yolov2_tiny_2 import Yolov2
 from dataset.factory import get_imdb
 from dataset.roidb import RoiDataset, Custom_yolo_dataset
 from yolo_eval import yolo_eval
@@ -35,38 +35,22 @@ np.random.seed(0)
 def parse_args():
 
     parser = argparse.ArgumentParser('Yolo v2')
-    parser.add_argument('--dataset', dest='dataset',
-                        default='voc07test', type=str)
-    parser.add_argument('--data', type=str,
-                        default=None, help='Give the path of custom data yaml file' )
-    parser.add_argument('--output_dir', dest='output_dir',
-                        default='output_800', type=str)
-    parser.add_argument('--model_name', dest='model_name',
-                        default='yolov2-pytorch/data/pretrained/yolov2-tiny-voc.pth',
-                        type=str)
-    parser.add_argument('--nw', dest='num_workers',
-                        help='number of workers to load training data',
-                        default=1, type=int)
-    parser.add_argument('--bs', dest='batch_size',
-                        default=8, type=int)
-    parser.add_argument('--cuda', dest='use_cuda',
-                        default=True, type=bool)
-    parser.add_argument('--vis', dest='vis',
-                        default=False, type=bool)
-    parser.add_argument('--data_limit', dest='data_limit',
-                        default=0, type=int)
-    # parser.add_argument('weights', type=str,
-    #                     default='yolov2-pytorch/data/pretrained/yolov2-tiny-voc.pth',
-    #                     help='model .pth path')
-    parser.add_argument('--thres', type=float,
-                       default=0.1, help='confidence threshold for selecting final predicitions')
-    parser.add_argument('--pseudos', type=bool,
-                        default=False, help='True if generating pseudo-labels')
-    parser.add_argument('--device', default=0,
-                        help='Choose a gpu device 0, 1, 2 etc.')
+    parser.add_argument('--dataset', dest='dataset', default='voc07test', type=str)
+    parser.add_argument('--data', dest='data', type=str, default=None, help='Give the path of custom data yaml file' )
+    parser.add_argument('--output_dir', dest='output_dir', default='output_800', type=str)
+    parser.add_argument('--model_name', dest='model_name', default='yolov2-pytorch/data/pretrained/yolov2-tiny-voc.pth', type=str)
+    parser.add_argument('--nw', dest='num_workers', help='number of workers to load training data', default=1, type=int)
+    parser.add_argument('--bs', dest='batch_size', default=8, type=int)
+    parser.add_argument('--cuda', dest='use_cuda', default=True, type=bool)
+    parser.add_argument('--vis', dest='vis', default=False, type=bool)
+    parser.add_argument('--data_limit', dest='data_limit', default=0, type=int)
+    # parser.add_argument('weights', type=str, default='yolov2-pytorch/data/pretrained/yolov2-tiny-voc.pth', help='model .pth path')
+    parser.add_argument('--thres', type=float, default=0.2, help='confidence threshold for selecting final predicitions')
+    parser.add_argument('--pseudos', type=bool, default=False, help='True if generating pseudo-labels')
+    parser.add_argument('--device', default=0, help='Choose a gpu device 0, 1, 2 etc.')
     parser.add_argument('--savePath', default='results')
     parser.add_argument('--imgSize', default='1280,720')
-    parser.add_argument('--self_training', default=True)
+    parser.add_argument('--self_training', default=False)
 
     args = parser.parse_args()
     return args
@@ -179,8 +163,10 @@ def showImg(img, labels, meta, relative=False):
     cv2.destroyAllWindows()
 
 def test(args):
-    args.conf_thresh = 0.01
-    args.nms_thresh = 0.45
+    args.conf_thresh, args.nms_thresh, args.scale = 0.001, 0.45, True
+    # args.thres = 0.2
+    # args.conf_thresh = 0.01
+    # args.nms_thresh = 0.45
     if args.vis:
         args.conf_thresh = 0.5
     device = int(args.device)
@@ -214,7 +200,7 @@ def test(args):
         #     args.conf_thresh = 0.18
         #     args.nms_thresh = 0.35
         args.scale   = True
-        val_dataset  = Custom_yolo_dataset(data=val_data, train=False, cleaning = False)
+        val_dataset  = Custom_yolo_dataset(data=val_data, train=False, cleaning = True)
         dataset_size = len(val_dataset)
         num_classes  = nc
         # all_boxes = [[[] for _ in range(dataset_size)] for _ in range(num_classes)]
@@ -339,7 +325,7 @@ def test(args):
         if args.data is not None:
             args.gtFolder           =     val_dir
             args.detFolder          =     f'{save_dir}/labels'
-            args.iouThreshold       =     0.5
+            args.iouThreshold       =     args.nms_thresh
             args.gtFormat           =     'xywh'
             args.detFormat          =     'xywh'
             args.gtCoordinates      =     'rel'
@@ -359,43 +345,34 @@ def test(args):
             # map = val_imdb.evaluate_detections(all_boxes, output_dir=args.output_dir)
             map = val_imdb.evaluate_detections_with_train(all_boxes, output_dir=args.output_dir)
             class_metrics = []
-        return map, class_metrics   
+        return map, class_metrics
     else:
         print(f'{Fore.GREEN} Detections saved in the designated folder for pseudo-label generation')
         return None, None
 
-def test_for_train(temp_path, model, 
-                   args, val_data=None, 
-                   classes=None, 
-                   afterTrain=False):
+def test_for_train(temp_path, model, args, val_data=None, classes=None, afterTrain=False):
     # args = parse_args()
     # make a directory to save predictions paths
     save_dir = f'{temp_path}/preds'
     if not os.path.exists(save_dir):
-        print(f'making: {Fore.GREEN}{save_dir}')
-        os.makedirs(save_dir)
+        os.makedirs(save_dir);      print(f'making: {Fore.GREEN}{save_dir}')
+        
     else:
-        print(f'{Fore.GREEN}{save_dir} {Fore.RESET}already exists removing...')
-        shutil.rmtree(f'{save_dir}', ignore_errors=True)
-        print(f'making: {Fore.GREEN}{save_dir}')
-        os.makedirs(save_dir)
+        shutil.rmtree(f'{save_dir}', ignore_errors=True);       print(f'{Fore.GREEN}{save_dir} {Fore.RESET}already exists removing...')
+        os.makedirs(save_dir);      print(f'making: {Fore.GREEN}{save_dir}')
+
 
     if val_data is not None:
-        args.conf_thresh = 0.001
-        args.nms_thresh = 0.45
+        args.conf_thresh, args.nms_thresh, args.scale = 0.001, 0.45, True
         args.thres = 0.2
-        args.scale = True
-        val_dataset = Custom_yolo_dataset(data=val_data, train=False, cleaning=False)
+        val_dataset = Custom_yolo_dataset(data=val_data, train=False, cleaning=True)
         dataset_size = len(val_dataset)
         num_classes = len(classes)
         # all_boxes = [[[] for _ in range(dataset_size)] for _ in range(num_classes)]
     else:
-        args.scale = True
+        
         args.dataset = "voc07test"
-        args.conf_thresh = 0.001
-        args.nms_thresh = 0.45
-        # args.data_limit = 16
-        # print(args)
+        args.conf_thresh, args.nms_thresh, args.scale  = 0.001, 0.45, True
 
         # prepare dataset
 
@@ -434,46 +411,49 @@ def test_for_train(temp_path, model,
     os.makedirs( args.output_dir, exist_ok=True )
     det_file = os.path.join(args.output_dir, 'detections.pkl')
 
-    img_id = -1
+    # img_id = -1         # BEFORE
     with torch.no_grad():
         for batch, (im_data, im_infos, paths) in tqdm(enumerate(val_dataloader), total=len(val_dataloader), desc="Performing validation.", ascii=' ~'):
-        # for batch, (im_data, im_infos) in enumerate(val_dataloader):
-        # for batch, (im_data, im_infos) in enumerate(small_val_dataloader):
             if args.use_cuda:
                 im_data_variable = Variable(im_data).cuda()
             else:
                 im_data_variable = Variable(im_data)
 
             yolo_outputs = model(im_data_variable, im_info=im_infos)
-            for i in range(im_data.size(0)):
-                img_id += 1
+            for i in range(im_data.size(0)):           # i have to fix
+                # img_id += 1
                 if args.data is not None:
-                    name = paths[i].split('/')[-1]
-                    name = name.split('.')[0] + '.txt'                
-                output = [item[i].data for item in yolo_outputs]
+                    name = paths[i].split('/')[-1].split('.')[0] + '.txt'
+                    # name = paths[i].split('/')[-1]        # BEFORE
+                    # name = name.split('.')[0] + '.txt'    # BEFORE
+                output = tuple([item[i].data for item in yolo_outputs])
                 im_info = {'width': im_infos[i][0], 'height': im_infos[i][1]}
-                detections = yolo_eval(output, im_info, conf_threshold=args.conf_thresh,
-                                       nms_threshold=args.nms_thresh)
+########################################################################################################################
+########################################################################################################################
+                detections = yolo_eval(output, im_info, conf_threshold=args.conf_thresh, nms_threshold=args.nms_thresh)
+########################################################################################################################
+########################################################################################################################
                 # print('im detect [{}/{}]'.format(img_id+1, len(val_dataset)))
-                if len(detections) > 0:
+                if len(detections) > 0:     # If detected anything
                     if args.data == None:
-                        for cls in range(num_classes):
-                            inds = torch.nonzero(detections[:, -1] == cls).view(-1)
-                            if inds.numel() > 0:
-                                cls_det = torch.zeros((inds.numel(), 5))
-                                cls_det[:, :4] = detections[inds, :4]
-                                cls_det[:, 4] = detections[inds, 4] * detections[inds, 5]
-                                all_boxes[cls][img_id] = cls_det.cpu().numpy()
+                        for cls in range(num_classes):          # i have to fix
+                            indexes = torch.nonzero(detections[:, -1] == cls).view(-1)
+                            if indexes.numel() > 0:
+                                cls_det = torch.zeros((indexes.numel(), 5))
+                                cls_det[:, :4] = detections[indexes, :4]
+                                cls_det[:, 4] = detections[indexes, 4] * detections[indexes, 5]
+                                # all_boxes[cls][img_id] = cls_det.cpu().numpy()
+                                all_boxes[cls][i] = cls_det.cpu().numpy()
                     else:
                         _detAllclass = []
-                        for cls in range(num_classes):
-                            inds = torch.nonzero(detections[:, -1] == cls).view(-1)
-                            if inds.numel() > 0:
+                        for cls in range(num_classes):          # i have to fix
+                            indexes = torch.nonzero(input=(detections[:, -1] == cls)).view(-1)
+                            if indexes.numel() > 0:
                                 # cls_ = torch.zeros(inds.numel())
                                 # cls_[:] = cls
-                                cls_det = torch.zeros((inds.numel(), 6))
-                                cls_det[:,0] = detections[inds, -1]
-                                cls_det[:, 1:6] = detections[inds, :5]
+                                cls_det = torch.zeros((indexes.numel(), 6))
+                                cls_det[:,0] = detections[indexes, -1]
+                                cls_det[:, 1:6] = detections[indexes, :5]
                                 # cls_det[:, 1] = detections[inds, 4] * detections[inds, 5]
                                 # showImg(im_data[i], cls_det, im_info, False)
                                 _det1Class = cls_det.tolist()         # per class detections tensor of (N,6) [cls conf x y w h]
@@ -482,7 +462,7 @@ def test_for_train(temp_path, model,
                         #     os.mkdir(f'{save_dir}/labels')
                         if len(_detAllclass)>0:
                             with open(f'{save_dir}/{name}', 'w') as f:
-                                f.writelines(_detAllclass)                                    
+                                f.writelines(_detAllclass)
     if args.data is not None:
         args.gtFolder           =   args.val_dir
         args.detFolder          =   save_dir
@@ -497,7 +477,7 @@ def test_for_train(temp_path, model,
         args.showPlot           =   False
         args.names              =   classes
         args.val                =   afterTrain
-        map, class_metrics = pascalvoc.main(args)    
+        map, class_metrics = pascalvoc.main(args)
     else:
         with open(det_file, 'wb') as f:
             pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)

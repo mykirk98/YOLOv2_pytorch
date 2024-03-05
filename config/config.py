@@ -27,7 +27,7 @@ thresh = .6
 
 batch_size = 64
 
-lr = 0.01
+lr = 0.001
 
 decay_lrs = {
     60: 0.00001,
@@ -77,5 +77,5 @@ test_input_size = (640, 640)
 
 strides = 32
 
-debug = False
+debug = False        # it should have to return to 'False'
 

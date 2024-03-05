@@ -96,7 +96,7 @@ class Yolov2(nn.Module):
         class_score = out[:, :, 5:]     # [B, H * W * num_anchors, num_classes] ----
         class_pred = F.softmax(class_score, dim=-1) # [B, H * W * num_anchors, num_classes]
         delta_pred = torch.cat([xy_pred, hw_pred], dim=-1)  # [B, H * W * num_anchors, 4]
-        
+
         vis = False
         if vis and training:
             for i in range(delta_pred.shape[0]):
@@ -206,7 +206,7 @@ class Yolov2(nn.Module):
                     #     buffer = param_state['momentum buffer']
                     #     buffer = buffer * (momentum + (1-dampening) * d_p)
                     # param.data = param.data - learning_rate * d_p       
-                
+
 
 if __name__ == '__main__':
     model = Yolov2()

@@ -85,10 +85,8 @@ class pascal_voc(imdb):
         """
         # Example path to image set file:
         # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/val.txt
-        image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
-                                      self._image_set + '.txt')
-        assert os.path.exists(image_set_file), \
-            'Path does not exist: {}'.format(image_set_file)
+        image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main', self._image_set + '.txt')
+        assert os.path.exists(image_set_file),'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
             image_index = [x.strip() for x in f.readlines()]
         return image_index

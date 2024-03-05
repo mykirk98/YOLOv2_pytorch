@@ -63,7 +63,7 @@ def parse_args():
                         default='output', type=str)
     parser.add_argument('--use_tfboard', dest='use_tfboard',
                         default=False, type=bool)
-    parser.add_argument('--display_interval', dest='display_interval',
+    parser.add_argument('--display_interval', dest='display_interval', 
                         default=20, type=int)
     parser.add_argument('--mGPUs', dest='mGPUs',
                         default=False, type=bool)
@@ -90,7 +90,7 @@ def parse_args():
                         help='Set true to remove small objects')
     parser.add_argument('--pix_th', dest='pix_th', 
                         default=11, type=int,
-                        help='Pixel Threshold value') 
+                        help='Pixel Threshold value')
     parser.add_argument('--asp_th', dest='asp_th', 
                         default=1.4, type=float,
                         help='Aspect Ratio threshold')
@@ -161,12 +161,12 @@ def nan_hook(self, inp, output):
                 if nan_mask.any():
                     print("In", self.__class__.__name__)
                     raise RuntimeError(f"Found NAN in output {i} at indices: ", 
-                                       nan_mask.nonzero(), 
-                                       "where:", 
-                                       out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
+                                        nan_mask.nonzero(), 
+                                        "where:", 
+                                        out[nan_mask.nonzero()[:, 0].unique(sorted=True)] if nan_mask.nonzero().size()[1]>0 else out)
 
 def train():
-    
+
     # define the hyper parameters first
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = f'{args.device}'
@@ -210,7 +210,7 @@ def train():
     if not os.path.exists(_output_dir):
         os.makedirs(_output_dir)
 
-    
+
     if not args.data_limit==0:
         train_dataset = torch.utils.data.Subset(train_dataset, range(0, args.data_limit))
     print(f'{Style.BRIGHT}dataset loaded....')
@@ -283,7 +283,10 @@ def train():
     #     map, _ = test_for_train(_output_dir, model, args)
     # print(f'\t-->>Initial mAP - Before starting training={round((map*100),2)}')
     
-    # Start training
+    ##### START TRAINING #####
+    map_list = []
+    time_list = []
+    total_time_cost = 0
     for epoch in range(args.start_epoch, args.max_epochs+1):
         loss_temp = 0
         tic = time.time()
@@ -317,7 +320,7 @@ def train():
             box_loss, iou_loss, class_loss = model(im_data_variable, boxes, gt_classes, num_obj, training=True, im_info=im_info)
 
             # Compute the total loss
-            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean() 
+            loss = box_loss.mean() + iou_loss.mean() + class_loss.mean()
             
             # Clear gradients
             optimizer.zero_grad()
@@ -345,7 +348,6 @@ def train():
                 % (epoch, step+1, iters_per_epoch, loss_temp, optimizer.param_groups[0]['lr'], toc - tic, iou_loss_v, box_loss_v, class_loss_v), end =' ')
 
         loss_temp = 0
-        tic = time.time()
 
         if epoch % args.save_interval == 0:
             save_name = os.path.join(_output_dir, 'yolov2_epoch_{}.pth'.format(epoch))
@@ -370,10 +372,23 @@ def train():
         
         # Check and save the best mAP
         save_name_temp = os.path.join(_output_dir, 'temp')
+################################################################################
+################################################################################
+################################################################################
+        # tic_val = time.time()
         if args.dataset == 'custom':
             map, _ = test_for_train(_output_dir, model, args, val_path, names)
         else:
             map, _ = test_for_train(_output_dir, model, args)
+        # toc_val = time.time()
+        # print(f"\t\t\ttime\t:\t{toc_val - tic_val:.6f}\n")
+        # time_list.append(round(number=(toc_val - tic_val), ndigits=4))
+        # map_list.append(round(number=map*100, ndigits=4))
+        # total_time_cost += (toc_val - tic_val)
+################################################################################
+################################################################################
+################################################################################
+        
         if map > max_map:
             max_map = map
             best_map_score = round((map*100),2)
@@ -389,6 +404,13 @@ def train():
                 'map': map
                 }, save_name_best)
 
+
+    # print(f"\t\t\t{Fore.YELLOW}average time cost at validation : {total_time_cost / args.max_epochs:.6f}")
+    # total_time_cost = int(total_time_cost)
+    # hours, minutes, seconds = total_time_cost // 3600, total_time_cost % 3600 // 60, total_time_cost % 3600 % 60
+    # print(f"\t\t\t{Fore.YELLOW}{hours}HOUR\t{minutes}MIN\t{seconds}SEC")
+    # print(f"mAP : {map_list}")
+    # print(f"time : {time_list}")
     print(f'\n\t---------------------{Style.BRIGHT}Best mAP was at Epoch {best_map_epoch}, with mAP={best_map_score}% and loss={best_map_loss}\n')
     print(f'{Style.BRIGHT}Validating after Training...')
     print(f'Loading best weights from {Style.BRIGHT}{Fore.GREEN}{save_name_best}')
