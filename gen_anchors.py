@@ -127,7 +127,7 @@ def main(argv):
     
     parser.add_argument('-img_height', 
                         default = 416, type = int, 
-                        help='Image height to which the image is resized\n' )  
+                        help='Image height to which the image is resized\n' )
 
     args = parser.parse_args()
     

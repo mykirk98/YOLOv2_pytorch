@@ -45,7 +45,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Yolo v2')
     parser.add_argument('--max_epochs', dest='max_epochs', help='number of epochs to train', default=100, type=int)
     parser.add_argument('--start_epoch', dest='start_epoch', default=1, type=int)
-    parser.add_argument('--batch_size', dest='batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', dest='batch_size', default=16, type=int)
     parser.add_argument('--data_limit', dest='data_limit', default=0, type=int)
     parser.add_argument('--dataset', dest='dataset', default='voc0712trainval', type=str)
     parser.add_argument('--data', type=str, dest='data', default=None, help='Give the path of custom data .yaml file')
